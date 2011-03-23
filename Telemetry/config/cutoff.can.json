@@ -1,0 +1,54 @@
+{
+  "0x022" : {
+    "name" : "Cutoff Emergency",
+    "description" : "A critical error is detected and the cutoff will now shut down the car",
+    "source" : "Cutoff"
+  },
+
+  "0x042" : {
+    "name" : "Cutoff Heartbeat",
+    "format" : "B7x",
+    "messages" : [
+      ["Flags", "heartbeat_bits", "Flags indicating the status of the cutoff module"]
+    ],
+    "source" : "Cutoff",
+    "period" : 200,
+    "heartbeat" : "Cutoff"
+  },
+
+
+  "0x521" : {
+    "name" : "Normal Shutdown",
+    "description" : "The cutoff receives a signal and begins shutdown normally",
+    "source" : "Cutoff"
+  },
+
+  "0x522" : {
+    "name" : "Non-Critical Error",
+    "description" : "The cutoff encounters an error that isn't critical enough to necessitate shutdown",
+    "source" : "Cutoff"
+  },
+
+  "0x523" : {
+    "name" : "Cutoff Voltage Reading",
+    "format" : "ff",
+    "messages" : [
+      ["Voltage 1", "volt", "Primary Voltage Reading"],
+      ["Voltage 2", "volt", "Secondary Voltage Reading"]
+    ],
+    "source" : "Cutoff",
+    "period" : 200
+  },
+
+  "0x524" : {
+    "name" : "Cutoff Current Reading",
+    "format" : "ff",
+    "messages" : [
+      ["Current 1", "milliamp", "Primary Current Reading"],
+      ["Current 2", "milliamp", "Secondary Current Reading"]
+    ],
+    "source" : "Cutoff",
+    "period" : 200
+  }
+
+}

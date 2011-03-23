@@ -1,0 +1,61 @@
+{
+  "0x770" : {
+    "name" : "MPPT Module 1 Readings",
+    "format" : "HHHB",
+    "messages" : [
+      ["Voltage In", "volt", "Voltage entering the MPPT"],
+      ["Current In", "amp", "Current entering the MPPT"],
+      ["Voltage Out", "volt", "Voltage produced by the MPPT"],
+      ["Temperature", "celcius", "Temperature of the MPPT"]
+    ],
+    "notes" : "Flags take up bit [4:7] in byte 0 as Undervolt, No Charge, Over Temperature, and Battery level reached"
+  },
+
+  "0x771" : {
+    "name" : "MPPT Module 2 Readings",
+    "format" : "ff",
+    "messages" : [
+      ["Flags", "true or false bits", "Byte1-0x80:Max Voltage 0x40:Over Temp 0x20:No Charge 0x10:Under Voltage"],
+      ["Voltage In", "volt", "Voltage entering the MPPT"],
+      ["Current In", "amp", "Current entering the MPPT"],
+      ["Voltage Out", "volt", "Voltage produced by the MPPT"],
+      ["Temperature", "celcius", "Temperature of the MPPT"]
+    ]
+  },
+
+  "0x772" : {
+    "name" : "MPPT Module 3 Readings",
+    "format" : "ff",
+    "messages" : [
+      ["Flags", "true or false bits", "Byte1-0x80:Max Voltage 0x40:Over Temp 0x20:No Charge 0x10:Under Voltage"],
+      ["Voltage In", "volt", "Voltage entering the MPPT"],
+      ["Current In", "amp", "Current entering the MPPT"],
+      ["Voltage Out", "volt", "Voltage produced by the MPPT"],
+      ["Temperature", "celcius", "Temperature of the MPPT"]
+    ]
+  },
+
+  "0x773" : {
+    "name" : "MPPT Module 4 Readings",
+    "format" : "ff",
+    "messages" : [
+      ["Flags", "true or false bits", "Byte1-0x80:Max Voltage 0x40:Over Temp 0x20:No Charge 0x10:Under Voltage"],
+      ["Voltage In", "volt", "Voltage entering the MPPT"],
+      ["Current In", "amp", "Current entering the MPPT"],
+      ["Voltage Out", "volt", "Voltage produced by the MPPT"],
+      ["Temperature", "celcius", "Temperature of the MPPT"]
+    ]
+  },
+
+  "0x774" : {
+    "name" : "MPPT Module 5 Readings",
+    "format" : "ff",
+    "messages" : [
+      ["Flags", "true or false bits", "Byte1-0x80:Max Voltage 0x40:Over Temp 0x20:No Charge 0x10:Under Voltage"],
+      ["Voltage In", "volt", "Voltage entering the MPPT"],
+      ["Current In", "amp", "Current entering the MPPT"],
+      ["Voltage Out", "volt", "Voltage produced by the MPPT"],
+      ["Temperature", "celcius", "Temperature of the MPPT"]
+    ]
+  }
+}

@@ -1,0 +1,386 @@
+{  
+  "0x100" : {
+    "name" : "Battery Information Module 0 Cell 0",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x101" : {
+    "name" : "Battery Information Module 0 Cell 1",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x102" : {
+    "name" : "Battery Information Module 0 Cell 2",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x103" : {
+    "name" : "Battery Information Module 0 Cell 3",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x104" : {
+    "name" : "Battery Information Module 0 Cell 4",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x105" : {
+    "name" : "Battery Information Module 0 Cell 5",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x106" : {
+    "name" : "Battery Information Module 0 Cell 6",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x107" : {
+    "name" : "Battery Information Module 0 Cell 7",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x108" : {
+    "name" : "Battery Information Module 0 Cell 8",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x109" : {
+    "name" : "Battery Information Module 0 Cell 9",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x10A" : {
+    "name" : "Battery Information Module 0 Cell 10",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x10B" : {
+    "name" : "Battery Information Module 0 Cell 11",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x110" : {
+    "name" : "Battery Information Module 1 Cell 0",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x111" : {
+    "name" : "Battery Information Module 1 Cell 1",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x112" : {
+    "name" : "Battery Information Module 1 Cell 2",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x113" : {
+    "name" : "Battery Information Module 1 Cell 3",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x114" : {
+    "name" : "Battery Information Module 1 Cell 4",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x115" : {
+    "name" : "Battery Information Module 1 Cell 5",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x116" : {
+    "name" : "Battery Information Module 1 Cell 6",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x117" : {
+    "name" : "Battery Information Module 1 Cell 7",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x118" : {
+    "name" : "Battery Information Module 1 Cell 8",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x119" : {
+    "name" : "Battery Information Module 1 Cell 9",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x11A" : {
+    "name" : "Battery Information Module 1 Cell 10",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x11B" : {
+    "name" : "Battery Information Module 1 Cell 11",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x120" : {
+    "name" : "Battery Information Module 2 Cell 0",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x121" : {
+    "name" : "Battery Information Module 2 Cell 1",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x122" : {
+    "name" : "Battery Information Module 2 Cell 2",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x123" : {
+    "name" : "Battery Information Module 2 Cell 3",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x124" : {
+    "name" : "Battery Information Module 2 Cell 4",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x125" : {
+    "name" : "Battery Information Module 2 Cell 5",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x126" : {
+    "name" : "Battery Information Module 2 Cell 6",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x127" : {
+    "name" : "Battery Information Module 2 Cell 7",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x128" : {
+    "name" : "Battery Information Module 2 Cell 8",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x129" : {
+    "name" : "Battery Information Module 2 Cell 9",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x12A" : {
+    "name" : "Battery Information Module 2 Cell 10",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x12B" : {
+    "name" : "Battery Information Module 2 Cell 11",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x130" : {
+    "name" : "Battery Information Module 3 Cell 0",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x131" : {
+    "name" : "Battery Information Module 3 Cell 1",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x132" : {
+    "name" : "Battery Information Module 3 Cell 2",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x133" : {
+    "name" : "Battery Information Module 3 Cell 3",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x134" : {
+    "name" : "Battery Information Module 3 Cell 4",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x135" : {
+    "name" : "Battery Information Module 3 Cell 5",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x136" : {
+    "name" : "Battery Information Module 3 Cell 6",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x137" : {
+    "name" : "Battery Information Module 3 Cell 7",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x138" : {
+    "name" : "Battery Information Module 3 Cell 8",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x139" : {
+    "name" : "Battery Information Module 3 Cell 9",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x13A" : {
+    "name" : "Battery Information Module 3 Cell 10",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  },
+  "0x13B" : {
+    "name" : "Battery Information Module 3 Cell 11",
+    "format" : "ff",
+    "messages" : [
+      ["Cell Voltage", "volt", "The battery cell voltage"],
+      ["Cell Temperature", "celcius", "The battery temperature"]
+    ]
+  }
+}  

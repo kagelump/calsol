@@ -1,0 +1,27 @@
+In order to use an XBee in the system, certain parameters must be set correctly.
+If the modem firmware and model exactly match ours (Modem: XBP24, Firmware: 10E6), you can use the stored parameter profiles.
+
+Otherwise, follow these steps to setup the profile from scratch.
+
+Steps:
+    1. With the XBee in the development board and the development board selected,
+       open X-CTU.
+    2. Make sure that something like "Digi PKG-U Serial Port Adapter" is selected under "Select Com Port"
+    3. Set Baud to 57600, Flow Control to NONE, Data Bits to 8, Parity to NONE, and Stop Bits to 1.
+    4. Click Test/Query to make sure that X-CTU can talk to the XBee. (If the firmware version is 10E6 or later
+       you may need to update X-CTU's copy of the firmware profiles).
+    5. Click on the "Modem Configuration" tab and click on Read under Modem Parameters and Firmware. The config
+       information should appear in the box below.
+    6. Under Networking & Security,
+       a. set ID - PAN ID to "CA15"
+       b. set DH - Destination Addresss High to "0"
+       c. set DL - Destination Address Low to "FFFF"
+       d. make note of SH - Serial Number High and SL - Serial Number Low - these together make up the XBee's
+          unique 64-bit address.
+       e. set NI - Node Identifier to some meaningful name for this XBee.
+    7. Under Serial Interfacing
+       a. set BD - Interface Data Rate to option "6 - 57600 baud"
+       b. set AP - API Enable to "1 - API ENABLED"
+    8. Press "Write" under Modem Parameters and Firmware to write the new parameter profile to the XBee.
+    9. To save the profile for further use, click on "Save" under Profile
+

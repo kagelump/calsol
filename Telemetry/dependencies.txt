@@ -1,0 +1,75 @@
+===============
+Telemetry Setup
+===============
+
+Dependencies and where to find them
+-----------------------------------
+Python_
+    All of the code is written in Python, so you need to get this first.
+    
+    Use version 2.5 or higher, but not the 3.x series (Python 3.0 is not
+    backwards compatible with extension libraries that we want to use)
+    
+Setuptools_
+    This is a packaging library used by some of the libraries that we need
+    and it's not possible to install them without setuptools
+    
+    Also, installing setuptools allows you to use easy_install on several of
+    the other dependencies, which is convenient.
+
+NumPy and SciPy_
+    These NumPy/SciPy + matplotlib form the core of the graph plotting.
+
+    Do not install Numeric or Numarray - these are outdated forks of NumPy
+
+Matplotlib_
+    Generates pretty graphs
+
+PySerial_
+    Handles communication over serial ports.
+
+PythonXbee_
+    Handles reading XBee API frames asynchronously using PySerial.
+
+PySQLite_
+    This is included with Python 2.5+ in the standard library as sqlite3
+
+PySide_
+    Python bindings to the QT4 GUI library.
+
+.. _Python: http://python.org/download/
+.. _Setuptools: http://pypi.python.org/pypi/setuptools#downloads
+.. _SciPy: http://www.scipy.org/Download
+.. _Matplotlib: http://sourceforge.net/projects/matplotlib/files/matplotlib/
+.. _PySerial: http://sourceforge.net/projects/pyserial/files/
+.. _PythonXbee: http://code.google.com/p/python-xbee/
+.. _PySQLite: http://docs.python.org/library/sqlite3.html#module-sqlite3/
+.. _PySide: http://pyside.org
+Installation Option
+------------
+============ =============== ================ ======== ============ ========================
+Dependency   Win32 installer 64-bit installer setup.py easy_install build requires compiling
+============ =============== ================ ======== ============ ========================
+Python       Yes             Yes              N/A      N/A          N/A
+Setuptools   Yes             N/A              Yes      N/A          No
+NumPy        Yes             Yes              No       No           Yes
+SciPy        Yes             Yes              No       No           Yes
+Matplotlib   Yes             Yes              No       No           Yes
+PySerial     Yes             No               Yes      Yes (req'd)  No
+Python-XBee  No              No               Yes      Yes          Not sure, but unlikely
+PySQLite     Yes             No               Maybe    Maybe        Yes
+PySide       Yes             Maybe            Maybe    Yes          Maybe
+============ =============== ================ ======== ============ ========================
+
+
+
+Xbee Firmware
+--------------------
+X-CTU may not include newer versions of the firmware. The Xbee-Pros that we have use the 10E6 firmware, which is included in the repository. To install it, go to the "Modem Configuration" tab and select "Download new versions..."
+
+Click on File to install any manually downloaded zip files (like the 10E6 firmware in the repository), and install it.
+
+Libraries for the BRAIN
+--------------------
+Ryan's BrainCan Library
+Xbee-Arduino library (patched version that allows you to select which UART to use is in the repository)

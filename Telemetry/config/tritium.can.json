@@ -1,0 +1,173 @@
+{
+  "0x501" : {
+    "name" : "Motor Drive Command",
+    "format" : "ff",
+    "messages" : [
+	["Motor Current", "percent", "Desired motor current set point as a percentage of maximum current setting."],
+      ["Motor Velocity", "m/s", "Desired motor velocity set point in metres/second."]
+      
+    ],
+    "description" : "The WaveSculptor motor controller must receive a Motor Drive Command frame at least once every 250ms. If this does not occur, the controller will assume that communications have failed and will halt all motor control functions, placing the system into neutral.",
+    "period" : 100,
+    "source" : "Driver Control",
+    "destination" : "Tritium",
+    "heartbeat" : "Driver Control"
+  },
+  
+  "0x502" : {
+    "name" : "Motor Power Command",
+    "format" : "4xf",
+    "messages" : [
+      ["Bus Current", "percent", "Desired set point of current drawn from the bus by the controller as a percentage of absolute bus current limit."]
+    ],
+    "destination" : "Tritium"
+  },
+  "0x400" : {
+    "name" : "Identification Information",
+    "format" : "4sL",
+    "messages" : [
+      ["Tritium ID", "string", "'TRIa' stored as a string. msg[0] = 'T', msg[1] = 'R'..."],
+      ["Serial Number", "number", "Device serial number, allocated at manufacture."]
+    ],
+    "description" : "The periodic broadcast of this message cannot be disabled. It is needed to help find the motor controller on the network if the base address is lost or misconfigured by the user.",
+    "source" : "Tritium",
+    "period" : 1000
+  },
+  "0x401" : {
+    "name" : "Status Information",
+    "format" : "HHH2x",
+    "messages" : [
+      ["Limit Flags", "bits", "Blah"]
+    ]
+  },
+  "0x402" : {
+   "name" : "Bus Measurement",
+   "format" : "ff",
+   "messages" : [
+     ["Bus Voltage", "volts", "DC Bus voltage at the controller."],
+     ["Bus Current", "amperes", "Current drawn from the DC bus by the controller."]
+    ],
+   "period" : 200,
+   "description" : ""
+  },
+  "0x403" : {
+   "name" : "Velocity Measurement",
+   "format" : "ff",
+   "messages" : [
+     ["Motor Velocity", "rpm", "Motor angular frequency in revolutions per minute."],
+     ["Vehicle Velocity", "m/s", "Vehicle velocity in metres / second."]
+    ],
+   "period" : 200,
+   "description" : ""
+  },
+  "0x404" : {
+   "name" : "Phase Current Measurement",
+   "format" : "ff",
+   "messages" : [
+     ["Phase B Current", "amperes", "RMS current in motor Phase B."],
+     ["Phase A Current", "amperes", "RMS current in motor Phase A."]
+    ],
+   "period" : 200,
+   "description" : "While the motor is rotating at speed these two currents should be equal. At extremely low commutation speeds these two currents will only match in one third of the motor position, the other two thirds will involve current also flowing in Phase C"
+  },
+  "0x405" : {
+   "name" : "Motor Voltage Vector Measurement",
+   "format" : "ff",
+   "messages" : [
+     ["Vq", "volts", "Imaginary component of the applied non rotating voltage vector to the motor."],
+     ["Vd", "volts", "Real component of the applied non rotating voltage vector to the motor."]
+    ],
+   "period" : 200,
+   "description" : ""
+  },
+  "0x406" : {
+   "name" : "Motor Current Vector Measurement",
+   "format" : "ff",
+   "messages" : [
+     ["Iq", "amperes", "Imaginary component of the applied non rotating current vector to the motor. This current produces torque in the motor and should be in phase with the back-EMF of the motor."],
+     ["Id", "amperes", "Real component of the applied non rotating current vector to the motor. This vector represents the field current of the motor."]
+    ],
+   "period" : 200,
+   "description" : ""
+  },
+  "0x407" : {
+   "name" : "Motor Back-EMF Measurement/Prediction",
+   "format" : "ff",
+   "messages" : [
+     ["BEMFq", "volts", "The peak of the phase to neutral motor voltage."],
+     ["BEMFd", "volts", "By definition this value is always 0V."]
+    ],
+   "period" : 200,
+   "description" : ""
+  },
+  "0x408" : {
+   "name" : "15 & 1.65 Voltage Rail Measurement",
+   "format" : "ff",
+   "messages" : [
+     ["1.65V Reference", "volts", "Actual voltage level of the 1.65V analog reference"],
+     ["15V Supply", "volts", "Actual voltage level of the 15V power rail."]
+    ],
+   "period" : 1000,
+   "description" : ""
+  },
+  "0x409" : {
+   "name" : "2.5V & 1.2V Voltage Rail Measurement",
+   "format" : "ff",
+   "messages" : [
+     ["1.2V Supply", "volts", "Actual voltage level of the 1.2V DSP power rail"],
+     ["2.5V Supply", "volts", "Actual voltage level of the 2.5V FPGA power rail."]
+    ],
+   "period" : 1000,
+   "description" : ""
+  },
+  "0x410" : {
+   "name" : "Fan Speed Measurement",
+   "format" : "ff",
+   "messages" : [
+     ["Fan Drive", "%", "Drive voltage percentage to cooling fan. If this value is above 0%, then the fan should be spinning."],
+     ["Fan Speed", "rpm", "Coolng fan speed in revolutionsper minute."]
+    ],
+   "period" : 1000,
+   "description" : ""
+  },
+  "0x411" : {
+   "name" : "Sink & Motor Temperature Measurement",
+   "format" : "ff",
+   "messages" : [
+     ["Motor Temp", "degree Celsius", "Internal temperature of the motor"],
+     ["Heatsink Temp", "degree Celsius", "Surface temperature of the controller heatsink."]
+    ],
+   "period" : 1000,
+   "description" : ""
+  },
+  "0x412" : {
+   "name" : "Air In & CPU Temperature Measurement",
+   "format" : "ff",
+   "messages" : [
+     ["Processor Temp", "degree Celsius", "Temperature of the internal processor."],
+     ["Air Inlet Temp", "degree Celsius", "Ambient air temperature at the ventilation inlet of the controller."]
+    ],
+   "period" : 5000,
+   "description" : ""
+  },
+  "0x413" : {
+   "name" : "Air Out & Cap Temperature Measurement",
+   "format" : "ff",
+   "messages" : [
+     ["Capacitor Temp", "degree Celsius", "Ambient temperature of the internal bus capacitors. Unused in 20kW WaveSculptor."],
+     ["Air Outlet Temp", "degree Celsius", "Ambient air temperature at the ventilation outlet of the controller. Unused in 20kW WaveSculptor."]
+    ],
+   "period" : 5000,
+   "description" : ""
+  },
+  "0x414" : {
+   "name" : "Odometer & Bus AmpHours Measurement",
+   "format" : "ff",
+   "messages" : [
+     ["Odometer", "meters", "the distance the vehicle has travelled since reset."],
+     ["DC Bus AmpHours", "Ampere-hours", "The charge flow into the controller bus voltage from the time of reset."]
+    ],
+   "period" : 1000,
+   "description" : ""
+  }
+}

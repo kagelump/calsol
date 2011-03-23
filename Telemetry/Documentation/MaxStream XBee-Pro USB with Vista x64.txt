@@ -1,0 +1,49 @@
+Using MaxStream XBee-Pro USB with Vista x64
+
+Posted by duane on June 20th, 2008
+
+I’m working on a small project developed using MaxStream’s XBee-Pro USB module.  To save development time and costs we are using the eval board to send commands from the computer.  The drivers on MaxStream’s website are pretty old and are only 32-bit, no help for Vista 64-bit.
+
+MaxStream is using an FTDI USB to serial port adapter on this board, but have changed the vendor information slightly for their application.  I was able to find FTDI’s usb drivers for 64-bit Vista (and 64-bit XP), but because of the changes to the USB device string it wouldn’t install the drivers. 
+
+After a little digging I was able to add the needed modifications to the driver information files.  After making the modifications windows recognized the drivers from FTDI as also being for MaxStream’s hardware (however, I had to try to install the drivers twice in a row for it to take-not sure why, but it worked on the second try and I didn’t care after that).
+
+Here are the modifications I made (add the lines to the specified sections in each file):
+
+ftdibus.inf
+
+[FtdiHw]
+
+%USB\VID_0403&PID_EE18.DeviceDesc%=FtdiBus.NT,USB\VID_0403&PID_EE18
+%USB\VID_0403&PID_EE19.DeviceDesc%=FtdiBus.NT,USB\VID_0403&PID_EE19
+
+[FtdiHw.NTamd64]
+
+%USB\VID_0403&PID_EE18.DeviceDesc%=FtdiBus.NTamd64,USB\VID_0403&PID_EE18
+%USB\VID_0403&PID_EE19.DeviceDesc%=FtdiBus.NTamd64,USB\VID_0403&PID_EE19
+
+[Strings]
+
+USB\VID_0403&PID_EE18.DeviceDesc=”Digi PKG-U USB Wireless Module”
+USB\VID_0403&PID_EE19.DeviceDesc=”MaxStream XBee XTender Port”
+
+ftdiport.inf
+
+[FtdiHw]
+
+%VID_0403&PID_EE18.DeviceDesc%=FtdiPort232.NT,FTDIBUS\COMPORT&VID_0403&PID_EE18
+%VID_0403&PID_EE19.DeviceDesc%=FtdiPort232.NT,FTDIBUS\COMPORT&VID_0403&PID_EE19
+
+[FtdiHw.NTamd64]
+
+%VID_0403&PID_EE18.DeviceDesc%=FtdiPort232.NTamd64,FTDIBUS\COMPORT&VID_0403&PID_EE18
+%VID_0403&PID_EE19.DeviceDesc%=FtdiPort232.NTamd64,FTDIBUS\COMPORT&VID_0403&PID_EE19
+
+[Strings]
+
+VID_0403&PID_EE18.DeviceDesc=”Digi PKG-U Serial Port Adapter”
+VID_0403&PID_EE19.DeviceDesc=”MaxStream XBee XTender”
+
+http://duane.thecoderblogs.com/2008/06/20/using-maxstream-xbee-pro-usb-with-vista-x64/
+
+http://www.ftdichip.com/Drivers/VCP.htm
