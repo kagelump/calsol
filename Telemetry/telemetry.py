@@ -15,8 +15,10 @@ from viewer.ports import ask_for_port
 from viewer.sample import XOMBIEDecoder, XOMBIEStream, DataSource
 from viewer.util import link
 
-from viewer.ViewWidget import TabViewContainer
+from viewer.ViewWidget import TabViewContainer, NewTabViewSelector
+from viewer.HistGraph import HistoricalGraphTabView
 from viewer.LiveGraph import LiveGraphTabView
+from viewer.BatteryStatus import BatteryScatterPlotTabView
 from viewer.SignalWidget import SignalTreeWidget
 
 def find_source(name):
@@ -138,6 +140,7 @@ class XOMBIEThread(QtCore.QThread):
             gap = datetime.datetime.utcnow() - self.stream.last_received
             if gap > five_seconds:
                 if not self.checking_heartbeat:
+                    self.got_heartbeat = False
                     self.checking_heartbeat = True
                     self.stream.logger.warning("Haven't received data packet since %s",
                                                self.stream.last_received.strftime("%H:%M:%S"))
@@ -158,14 +161,14 @@ class XOMBIEThread(QtCore.QThread):
         if not self.got_heartbeat:
             self.stream.logger.error("Didn't hear a heartbeat response - disassociating.")
             self.stream.state = XOMBIEStream.UNASSOCIATED
-        else:
-            self.stream.logger.info("Got heartbeat response")
+
         self.got_heartbeat = False
         self.checking_heartbeat = False
 
     def mark_heartbeat(self):
         if self.checking_heartbeat:
             self.got_heartbeat = True
+            self.stream.logger.info("Got heartbeat response")
 
     def insert_data(self, cursor, id_, name, t, data):
         cmd = "INSERT INTO data(id, name, time, data) VALUES (?,?,?,?)"
@@ -236,7 +239,10 @@ class TelemetryApp(QtGui.QApplication):
             self.xombie_thread.start()
             print "XOMBIE thread started"
 
-        self.window.setup_tabs(self.tab_descs)
+        try:
+            self.window.setup_tabs(self.tab_descs)
+        except BaseException as e:
+            print "Error occurred while setting up tabs from config file: %s" % e
         self.window.show()
         
         return self.exec_()
@@ -277,32 +283,38 @@ class TelemetryApp(QtGui.QApplication):
             self.tab_descs = json.load(f)
         except BaseException as e:
             print "Error while loading tab config file: %s" % e
-            self.tab_descs = [["New Tab", {"plots": [], "timescale": 30.0}]]
+            self.tab_descs = [["New Tab", {"type": "view.select",
+                                           "icon":"window-new.png"}]]
 
     def closeEvent(self, event=None):
         try:
             if self.xombie_thread.isRunning():
-                print        "Sending shutdown signal...             ",
+                print        "Sending shutdown signal...".ljust(50),
                 shutdown = QtCore.QEvent(XOMBIEThread.shutdown_event_type)
                 self.sendEvent(self.xombie_thread, shutdown)
-                print "\r" + "Waiting for XOMBIE to shutdown         ",
+                print "\r" + "Waiting for XOMBIE to shutdown".ljust(50),
                 self.xombie_thread.wait()
-                print "\r" + "XOMBIE shutdown successfully           "
+                print "\r" + "XOMBIE shutdown successfully".ljust(50)
 
             if self.connection is not None:
-                print        "Commiting remaining data to disk       ",
+                print        "Commiting remaining data to disk".ljust(50),
                 self.connection.commit()
-                print "\r" + "Closing database connection...         ",
+                print "\r" + "Closing database connection...".ljust(50),
                 self.connection.close()
-                print "\r" + "SQLite connection shutdown successfully."
+                print "\r" + "SQLite connection shutdown successfully.".ljust(50)
             
         finally:
-            print "Writing configuration information to '%s'" % "tabs.config.json"
-            f = open(os.path.join("config", "tabs.config.json"), "w+")
-            json.dump(self.window.json_friendly(), f, indent=4)
-            f.close()
-            print "Telemetry Viewer shutdown successfully"
-            self.quit()
+            print ("Writing configuration information to '%s'" % "tabs.config.json").ljust(50)
+            try:
+                f = open(os.path.join("config", "tabs.config.json"), "w+")
+                json.dump(self.window.json_friendly(), f, indent=4)
+                f.close()
+            except BaseException as e:
+                print "Error while writing tab configuration: %s" % e
+                self.quit()
+            else:
+                print "Telemetry Viewer shutdown successfully".ljust(50)
+                self.quit()
 
 class TelemetryViewerWindow(QtGui.QMainWindow):
     def __init__(self, application, title, desc_sets):
@@ -314,6 +326,13 @@ class TelemetryViewerWindow(QtGui.QMainWindow):
 
 
         self.icon_cache = {}
+
+        self.tab_types = []
+        for view in [LiveGraphTabView, HistoricalGraphTabView, BatteryScatterPlotTabView]:
+            self.tab_types.append((view.view_name,
+                                   self.find_icon(view.view_icon),
+                                   view.view_desc,
+                                   view.view_id))
 
         self._ui_setup()
         self.tabWidget.setMovable(True)
@@ -334,12 +353,10 @@ class TelemetryViewerWindow(QtGui.QMainWindow):
         self.color_timer = QtCore.QTimer(self)
 
         link(self.console_timer.timeout, self.update_console)
-        #link(self.color_timer.timeout, self.update_colors)
         link(self.redraw_timer.timeout, self.redraw)
 
         self.console_timer.start(50)
         self.redraw_timer.start(100)
-        #self.color_timer.start(1000)
 
 
     def find_icon(self, name):
@@ -458,39 +475,35 @@ class TelemetryViewerWindow(QtGui.QMainWindow):
     def setup_tabs(self, descs):
         if not descs:
             return
-        try:
-            for [tab_name, desc] in descs:
-                if desc["type"] == "live.graph":
-                    new_tab = LiveGraphTabView(self.tabWidget, find_source)
-                    new_tab.timescale = desc["timescale"]
-                    for plot_desc in desc["plots"]:
-                        plot = new_tab.add_plot([])
-                        for (name, color, style) in plot_desc["signals"]:
-                            plot.add_signal(name)
-                        plot.autoscale = plot_desc["autoscale"]
-                        plot.static = plot_desc["static"]
-                        if plot_desc.get("title"):
-                            plot.set_title(plot_desc["title"])
-                        if plot_desc.get("units"):
-                            plot.yaxis.set_label_text(plot_desc["units"])
-                        y_min, y_max = plot_desc["yview"]
-                        plot.yaxis.set_view_interval(y_min, y_max, ignore=True)
-                        plot.yaxis.reset_ticks()
 
-                icon = None
-                if desc.get("icon") is not None:
-                    icon = self.find_icon(desc.get("icon"))
-                    if icon is None:
-                        print "Warning: couldn't load icon '%s'" % icon
-                
-                if icon is not None:
-                    self.tabWidget.addTab(new_tab, icon, tab_name)
-                    new_tab.icon = desc.get("icon")
-                else:
-                    self.tabWidget.addTab(new_tab, tab_name)
-                self.tabs.append(new_tab)
-        except BaseException as e:
-            print "Error occurred while setting up tabs from config file: %s" % e
+        for [tab_name, desc] in descs:
+            if desc["type"] == LiveGraphTabView.view_id:
+                new_tab = LiveGraphTabView.from_json(desc, self.tabWidget,
+                                                     find_source)
+            elif desc["type"] == NewTabViewSelector.view_id:
+                new_tab = NewTabViewSelector.from_json(desc, self.tabWidget,
+                                                       self.tab_types,
+                                                       self.transform_tab)
+##            elif desc["type"] == HistoricalGraphTabView.view_id:
+##                new_tab = HistoricalGraphTabView.from_json(desc, self.tabWidget,
+##                                                 self.app.can_descriptors,
+##                                                 self.app.connection)
+            else:
+                continue
+
+            icon = None
+            if desc.get("icon") is not None:
+                icon = self.find_icon(desc.get("icon"))
+                if icon is None:
+                    print "Warning: couldn't load icon '%s'" % icon
+            
+            if icon is not None:
+                self.tabWidget.addTab(new_tab, icon, tab_name)
+                new_tab.icon = desc.get("icon")
+            else:
+                self.tabWidget.addTab(new_tab, tab_name)
+            self.tabs.append(new_tab)
+        
 
     def update_console(self):
         "Pull any messages from the message queue and display them on the console"
@@ -499,14 +512,36 @@ class TelemetryViewerWindow(QtGui.QMainWindow):
         self.update_colors()
         
     def make_new_tab(self):
-        new_plot = LiveGraphTabView(self.tabWidget, find_source)
-        self.tabWidget.addTab(new_plot, "A New Tab")
-        self.tabWidget.setCurrentWidget(new_plot)
-        self.tabs.append(new_plot)
+        new_tab = NewTabViewSelector(self.tabWidget, self.tab_types, self.tabWidget)
+        if new_tab.view_icon:
+            self.tabWidget.addTab(new_tab,
+                                  self.find_icon(new_tab.view_icon),
+                                  "A New Tab")
+        else:
+            self.tabWidget.addTab(new_tab, "A New Tab")
+        self.tabWidget.setCurrentWidget(new_tab)
+        self.tabs.append(new_tab)
+
+        link(new_tab.choice_selected, self.transform_tab)
+
+    def transform_tab(self, choice):
+        if choice == LiveGraphTabView.view_id:
+            new_tab = LiveGraphTabView(self.tabWidget, find_source)
+        elif choice == BatteryScatterPlotTabView.view_id:
+            return
+        elif choice == HistoricalGraphTabView.view_id:
+            new_tab = HistoricalGraphTabView(self.tabWidget,
+                                             self.app.can_descriptors,
+                                             self.app.connection)
+        
+        if hasattr(new_tab, "icon"):
+            icon = self.find_icon(new_tab.icon)
+        else:
+            icon = self.find_icon(new_tab.view_icon)
+        self.tabWidget.replace_tab(new_tab, icon)
 
     def update_colors(self):
         if not app.xombie_thread.isRunning():
-            #self.color_timer.stop()
             return
         received_times = []
         for name, source in app.xombie_thread.stream.data_table.items():

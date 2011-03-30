@@ -1,9 +1,13 @@
+import math
+
 from PySide import QtGui, QtCore
 from util import link
 
 class BaseTabViewWidget(QtGui.QWidget):
-    view_type_name = "__default_view_widget__"
-    view_type_icon = None
+    view_name = "Base Tab View"
+    view_id   = "view.base"
+    view_icon = None
+    view_desc = None
     def __init__(self, tab_bar, parent=None, init=True):
         if init:
             QtGui.QWidget.__init__(self, parent)
@@ -12,9 +16,12 @@ class BaseTabViewWidget(QtGui.QWidget):
 
     def json_friendly(self):
         return {
-                  "type": self.view_type_name,
-                  "icon": getattr(self, "icon_name", self.view_type_icon)
+                  "type": self.view_id,
+                  "icon": getattr(self, "icon_name", self.view_icon)
                }
+
+    def redraw(self):
+        raise NotImplementedError
 
     def cleanup(self):
         raise NotImplementedError
@@ -44,27 +51,66 @@ class TabViewContainer(QtGui.QTabWidget):
         if accepted:
             self.setTabText(index, new_name)
 
+    def replace_tab(self, new_tab, icon):
+        "Destroy the current active tab and put this tab in its place"
+        index = self.currentIndex()
+        tab = self.widget(index)
+        label = self.tabText(index)
+        
+        self.removeTab(index)
+        tab.cleanup()
+        tab.close()
+
+        self.insertTab(index, new_tab, icon, label)
+        self.setCurrentIndex(index)
+
     def close_tab(self, index):
-        if self.count() == 1:
-            dialog = QtGui.QDialog(self)
-            dialog.setWindowTitle("Error")
-            layout = QtGui.QVBoxLayout(dialog)
-            label = QtGui.QLabel("You can't close the last tab")
-            button = QtGui.QPushButton("Okay", dialog)
-            layout.addWidget(label)
-            layout.addWidget(button)
-            dialog.setLayout(layout)
-
-            link(button.pressed, dialog.close)
-
-            dialog.show()
-            
-            #Closing the last tab makes the new tab button disappear...
-            return
-    
         tab = self.widget(index)
         self.removeTab(index)
         tab.cleanup()
         tab.close()
 
+class NewTabViewSelector(BaseTabViewWidget):
+    view_name = "New Tab View Selector"
+    view_id   = "view.select"
+    view_icon = "window-new.png"
 
+    choice_selected = QtCore.Signal(object)
+    def __init__(self, tab_bar, choices, parent=None):
+        BaseTabViewWidget.__init__(self, tab_bar, parent)
+        
+        self.layout = QtGui.QGridLayout(self)
+        self.setup(choices)
+        self.setLayout(self.layout)
+
+    def setup(self, choices):
+        #General layout heuristic - if there are N choices, try to make
+        #a ceil(sqrt(N)) x ceil(sqrt(N)) grid.
+
+        M = N = int(math.ceil(math.sqrt(len(choices))))
+        for k, (name, icon, desc, ident) in enumerate(choices):
+            button = QtGui.QPushButton(icon, name)
+            label = QtGui.QLabel(desc)
+            layout = QtGui.QVBoxLayout()
+            i, j = divmod(k, N)
+            self.layout.addLayout(layout, i, j)
+            layout.addWidget(button)
+            layout.addWidget(label)
+
+            link(button.pressed, lambda ident=ident: self.choice_selected.emit(ident))
+
+
+    def redraw(self):
+        pass
+
+    def cleanup(self):
+        pass
+
+    def update_view(self, now):
+        pass
+
+    @classmethod
+    def from_json(cls, json, tab_bar, choices, do_transform, parent=None):
+        selector = cls(tab_bar, choices, parent)
+        link(selector.choice_selected, do_transform)
+        return selector

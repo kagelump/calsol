@@ -171,6 +171,9 @@ class FigureCanvasQT( QtGui.QWidget, FigureCanvasBase ):
         FigureCanvasBase.key_release_event( self, key )
         if DEBUG: print 'key release', key
 
+    def resize(self, w, h):
+        QtGui.QWidget.resize(self, w, h)
+
     def resizeEvent( self, event ):
         if DEBUG: print 'resize (%d x %d)' % (event.size().width(), event.size().height())
         w = event.size().width()
@@ -179,7 +182,7 @@ class FigureCanvasQT( QtGui.QWidget, FigureCanvasBase ):
         dpival = self.figure.dpi
         winch = w/dpival
         hinch = h/dpival
-        self.figure.set_size_inches( winch, hinch )
+        self.figure.set_size_inches( winch, hinch , forward=True)
         self.draw()
         self.update()
         QtGui.QWidget.resizeEvent(self, event)

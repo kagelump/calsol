@@ -1,12 +1,14 @@
 import datetime
+import json
 import matplotlib.dates as mdates
 from matplotlib.axes import Subplot
 from matplotlib.figure import Figure
+
 from PySide import QtGui, QtCore
 
 from backend_pysideagg import FigureCanvasQTAgg as FigureCanvas
 from DatePlot import DatetimeCollection, KenLocator, KenFormatter
-from SignalWidget import SignalTreeWidget
+from SignalWidget import SignalTreeWidget, SignalListEditorDialog
 from ViewWidget import BaseTabViewWidget
 from util import link
 
@@ -19,10 +21,12 @@ class LiveGraphTabView(BaseTabViewWidget, FigureCanvas):
     data from multiple data sources and redrawing.
 
     class variables:
-        view_type_name - the type name stored when the tab is serialized to json
-                         in this case, 'live.graph'
-        view_type_icon - the default icon filename for live graph widgets,
-                         in this case, 'graph-icon.png'
+        view_name   - the user-visible title for LiveGraphTabViews
+        view_id     - the type name stored when the tab is serialized to json
+                      in this case, 'live.graph'
+        view_icon   - the default icon filename for live graph widgets,
+                      in this case, 'graph-icon.png'
+        view_desc   - the user-visible description of the LiveGraphTabView
     instance variables:
         figure      - the matplotlib figure object associated with the widget
         plots       - the subplot objects being displayed
@@ -48,8 +52,10 @@ class LiveGraphTabView(BaseTabViewWidget, FigureCanvas):
 
         redraw           - redraws all plots and the figure.
     """
-    view_type_name = "live.graph"
-    view_type_icon = "graph-icon.png"
+    view_name = "Live Graph View"
+    view_id   = "live.graph"
+    view_icon = "graph-icon.png"
+    view_desc = "A live stream of data visualized on a plot vs time"
 
     def __init__(self, tab_bar, source_finder, parent=None):
         figure = Figure(figsize=(3,3), dpi=72)
@@ -88,15 +94,16 @@ class LiveGraphTabView(BaseTabViewWidget, FigureCanvas):
 
     def dropEvent(self, event):
         if event.mimeData().hasFormat(SignalTreeWidget.mimeType):
+            data = str(event.mimeData().data(SignalTreeWidget.mimeType))
+            sources = json.loads(data)
             event.acceptProposedAction()
-            sources = event.mimeData().text().split("|")
             self.add_plot(sources)
         else:
             event.ignore()
 
-    def add_plot(self, names):
+    def add_plot(self, sources):
         "Add a subplot to this widget displaying all of the signals in names"
-
+        
         rows = len(self.plots) + 1
         for i, plot in enumerate(self.plots):
             plot.change_geometry(rows, 1, i+1)
@@ -108,11 +115,13 @@ class LiveGraphTabView(BaseTabViewWidget, FigureCanvas):
         now = datetime.datetime.utcnow()
         new_plot.set_xbound(mdates.date2num(now - td),
                             mdates.date2num(now))
-        if len(names) == 1:
-            new_plot.set_title(names[0])
+        if len(sources) == 1:
+            new_plot.set_title(sources[0]["name"])
 
-        for name in names:
-            new_plot.add_signal(name)
+        for descr in sources:
+            new_plot.add_signal(descr["identifier"],
+                                color=descr["color"],
+                                style=descr["style"])
 
         self.figure.add_subplot(new_plot)
         self.plots.append(new_plot)
@@ -143,6 +152,17 @@ class LiveGraphTabView(BaseTabViewWidget, FigureCanvas):
         json["timescale"] = self.timescale
         json["plots"] = [plot.json_friendly() for plot in self.plots]
         return json
+
+    @classmethod
+    def from_json(cls, json, tab_bar, find_source, parent=None):
+        tab = cls(tab_bar, find_source, parent)
+        tab.timescale = json["timescale"]
+        
+        for plot_desc in json["plots"]:
+            plot = tab.add_plot([])
+            plot.init_from_json(plot_desc)
+
+        return tab
 
     def update_view(self, now):
         "Copy any pending data to the plots and update the data limits"
@@ -274,11 +294,25 @@ class LiveSubplot(Subplot):
                  "title"     : self.get_title()
                }
 
+    def init_from_json(self, json):
+        self.autoscale = json["autoscale"]
+        self.static = json["static"]
+        if json.get("title"):
+            self.set_title(json["title"])
+        if json.get("units"):
+            self.yaxis.set_label_text(json["units"])
+        y_min, y_max = json["yview"]
+        self.yaxis.set_view_interval(y_min, y_max, ignore=True)
+        self.yaxis.reset_ticks()
+        
+        for (name, color, style) in json["signals"]:
+            self.add_signal(name)
+
     def cleanup(self):
         for name, (signal, collection) in self.signals.items():
             collection.remove()
 
-    def add_signal(self, name):
+    def add_signal(self, name, color=None, style=None):
         if name in self.signals:
             return
 
@@ -398,6 +432,18 @@ class LiveSubplot(Subplot):
 
     def adjust_signals(self):
         print "Adjust sources selected"
+        dialog = SignalListEditorDialog(self.parent)
+        dialog.setup([{"identifier":name} for name in self.signals])
+
+        def say_hi(*args):
+            print "Hi", args
+
+        link(dialog.signal_added, self.add_signal)
+        link(dialog.signal_modified, say_hi)
+        link(dialog.signal_removed, say_hi)
+        
+        dialog.show()
+
 
 class CustomDateTimeEdit(QtGui.QDateTimeEdit):
     def __init__(self, date=None, time=None, parent=None):
