@@ -7,21 +7,29 @@ Steps:
     1. With the XBee in the development board and the development board selected,
        open X-CTU.
     2. Make sure that something like "Digi PKG-U Serial Port Adapter" is selected under "Select Com Port"
-    3. Set Baud to 57600, Flow Control to NONE, Data Bits to 8, Parity to NONE, and Stop Bits to 1.
+    3. Set the Baud Rate to whatever the XBee has been configured to communicate at. If the serial
+       interfacing mode has already been configured (ie, not a fresh XBee), then the correct settings are:
+    	     Set Baud to 57600, Flow Control to NONE, Data Bits to 8, Parity to NONE, and Stop Bits to 1.
+       Otherwise the defaults should be:
+           Set Baud to 9600, Flow Control to NONE, Data Bits to 8, Parity to NONE, and Stop Bits to 1.
     4. Click Test/Query to make sure that X-CTU can talk to the XBee. (If the firmware version is 10E6 or later
        you may need to update X-CTU's copy of the firmware profiles).
     5. Click on the "Modem Configuration" tab and click on Read under Modem Parameters and Firmware. The config
        information should appear in the box below.
     6. Under Networking & Security,
        a. set ID - PAN ID to "CA15"
-       b. set DH - Destination Addresss High to "0"
-       c. set DL - Destination Address Low to "FFFF"
-       d. make note of SH - Serial Number High and SL - Serial Number Low - these together make up the XBee's
+       b. set MY - 16-bit Source Address to FFFF
+       c. make note of SH - Serial Number High and SL - Serial Number Low - these together make up the XBee's
           unique 64-bit address.
-       e. set NI - Node Identifier to some meaningful name for this XBee.
-    7. Under Serial Interfacing
+       d. set NI - Node Identifier to some meaningful name for this XBee.
+    7. Under RF Interfacing
+       a. Set PL - Power Level to the correct power level for local RF regulations. For the FCC, the
+          maximum power output is 14dB. The antenna is 5dBi and the connector cable is -3dB, so
+          you should choose the correct option so that POWER + 2dB <= POWER_LIMIT.
+          For 14dB, choose "1 - LOW" 
+    8. Under Serial Interfacing
        a. set BD - Interface Data Rate to option "6 - 57600 baud"
-       b. set AP - API Enable to "1 - API ENABLED"
-    8. Press "Write" under Modem Parameters and Firmware to write the new parameter profile to the XBee.
-    9. To save the profile for further use, click on "Save" under Profile
+       b. set AP - API Enable to "2 - API ENABLED W/PPP"
+    9. Press "Write" under Modem Parameters and Firmware to write the new parameter profile to the XBee.
+   10. To save the profile for further use, click on "Save" under Profile
 
