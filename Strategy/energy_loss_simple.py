@@ -96,7 +96,7 @@ def load_data():
         sys.exit(1)"""
     global route
     route = [] #format [ pos1, pos2, ... ]
-    input = open("../misc/ddist.csv")
+    input = open("./misc/ddist.csv")
     
     line = input.readline()
     while line:
