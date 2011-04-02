@@ -157,6 +157,11 @@ void Sending(CanMessage *msg) {
         debuggingStart = millis();
         state = DEBUGGING;
         return;
+      } else if (handshakePacketVerify(command, handShake1)) {
+        waitCount = 0;
+        waiting = 0;
+        state = LISTENING;
+        return;
       }
     }
   }
@@ -228,6 +233,14 @@ void Debugging(CanMessage *msg, long time) {
         waiting = 0;
       } else if (handshakePacketVerify(command, debuggingMode)) {
         debuggingStart = millis();
+      } else if (handshakePacketVerify(command, handShake1)) {
+        waitCount = 0;
+        waiting = 0;
+        debuggingStart = 0;
+        countingFlag = 0;
+        previousTime = 0;
+        state = LISTENING;
+        return;
       }
     }
   }
