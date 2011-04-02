@@ -182,7 +182,7 @@ void Sending(CanMessage *msg) {
   }
   
   if (msg != NULL) {
-    //Serial.println("CAN message obtained");
+    Serial.println("CAN message obtained");
     uint8_t message[14];
     uint16_t id = msg->id;
     uint8_t len = msg->len;
@@ -197,7 +197,7 @@ void Sending(CanMessage *msg) {
     
     Tx64Request tx = Tx64Request(chaseCarXBEE, message, msg->len + 6);
     xbee.send(tx);
-    //Serial.println("CAN message sent");
+    Serial.println("CAN message sent");
     if (waiting == 0) {
       beatCount++;
     }
@@ -290,8 +290,8 @@ void Debugging(CanMessage *msg, long time) {
 void loop() {
   
   //Serial.println("Entering loop");
-  //Serial.print("CAN Buffer: ");
-  //Serial.println(CanBufferSize());
+  Serial.print("CAN Buffer: ");
+  Serial.println(CanBufferSize());
   CanMessage *msg = NULL;
   if (CanBufferSize()) {
     msg = &CanBufferRead();
@@ -300,21 +300,22 @@ void loop() {
   
   switch (state) {
     case LISTENING:
-      //Serial.println("Listening mode");
+      Serial.println("Listening mode");
       Listening();
       break;
     
     case TRANSITION:
-      //Serial.println("Transition mode");
+      Serial.println("Transition mode");
       Transition();
       break;
     
     case SENDING:
-    //Serial.println("Sending mode");
+    Serial.println("Sending mode");
       Sending(msg);
       break;
       
     case DEBUGGING:
+    Serial.println("Debugging mode");
       Debugging(msg, time);
       break;
       
