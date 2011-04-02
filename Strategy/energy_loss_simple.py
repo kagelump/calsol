@@ -96,7 +96,7 @@ def load_data():
         sys.exit(1)"""
     global route
     route = [] #format [ pos1, pos2, ... ]
-    input = open("./misc/ddist.csv")
+    input = open("./misc/course.csv")
     
     line = input.readline()
     while line:
@@ -117,12 +117,12 @@ def load_data():
     input.close()
     
     #test that the data is in the correct format
-    if route[0][0] < 120 or route[0][0] > 140:
-        print 'route[0][0]:', route[0][0]
+    if route[0][1] < 120 or route[0][1] > 140:
+        print 'route[0][0]:', route[0][1]
         print 'make sure you did not switch longitude and lattitude in the csv!!!'
         sys.exit(1)
-    if route[0][1] > -10 or route[0][1] < -40:
-        print 'route[0][1]:', route[0][1]
+    if route[0][0] > -10 or route[0][0] < -40:
+        print 'route[0][1]:', route[0][0]
         print 'make sure you did not switch longitude and lattitude in the csv!!!'
         sys.exit(1)
     #end load_data()
