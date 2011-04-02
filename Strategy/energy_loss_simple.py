@@ -2,14 +2,14 @@ import sys, math
 
 route = None
 
-def calcdE(startPos, speed, time):
+def powerConsumption(startPos, speed, time):
     # startPos format (lat, lon, alt)
     global route
     if not route:
         print 'route not loaded!!!'
         sys.exit(1)
 
-    targetDist = speed(0) * time
+    targetDist = speed * time
 
     pti = closestPointIndex(route, startPos)
     dE = 0
@@ -42,7 +42,7 @@ def calcdE(startPos, speed, time):
 
 def energyStep(start, end, dist, speed):
     dE = 0
-    currentSpeed = speed(0)
+    currentSpeed = speed
     time = dist / currentSpeed
     
     # altitude
@@ -154,11 +154,11 @@ if __name__ == '__main__':
     
     time = 60*60 #seconds left in race
     start_pos = (-12, 130) #longitude, latitude, meters above sea level
-    speed = lambda x: 10 #m/s speed parametrized on something
+    speed = 10 #m/s speed parametrized on something
 
     
     load_data()
-    dE = calcdE(start_pos, speed, time)
+    dE = powerConsumption(start_pos, speed, time)
     print 'dE:', dE
     print 'done'
 
