@@ -12,10 +12,10 @@
 #define LISTENING 0
 #define TRANSITION 1
 #define SENDING 2
+#define DEBUGGING 3
 
 XBee xbee = XBee();
 XBeeAddress64 chaseCarXBEE = XBeeAddress64(0x13A200, 0x405D032A);
-
 
 int state = LISTENING;
 int transitionCount = 0;
@@ -31,6 +31,18 @@ int handShake2 = 0x82;
 int handShake3 = 0x83;
 int heartShake4 = 0x84;
 int heartShake5 = 0x85;
+
+int debuggingMode = 0xC1;
+long debuggingStart = 0;
+long debuggingTime = 10000;
+int packetHistogram = 0xC2;
+
+boolean debuggingFlag = 1;
+boolean countingFlag = 0;
+long baseTime = 0;
+long previousTime = 0;
+long interval = 5;
+uint8_t histogram[91];
 
 void setup() {
     pinMode(DTR_PIN, OUTPUT);
@@ -141,6 +153,10 @@ void Sending(CanMessage *msg) {
         //Serial.println("Heartbeat check TO chase car complete");
         waitCount = 0;
         waiting = 0;
+      } else if (handshakePacketVerify(command, debuggingMode)) {
+        debuggingStart = millis();
+        state = DEBUGGING;
+        return;
       }
     }
   }
@@ -188,14 +204,100 @@ void Sending(CanMessage *msg) {
   }
 }
 
+void Debugging(CanMessage *msg, long time) {
+  if ((millis() - debuggingStart) > debuggingTime) {
+    debuggingStart = 0;
+    countingFlag = 0;
+    previousTime = 0;
+    state = SENDING;
+    return;
+  }
+  
+  while (xbee.readPacket(1)) {
+    //Serial.println("Reading XBee packet");
+    XBeeResponse response = xbee.getResponse();
+    if (response.getApiId() == RX_64_RESPONSE) {
+      //Serial.println("Command message obtained");
+      Rx64Response command;
+      response.getRx64Response(command);
+      if (handshakePacketVerify(command, heartShake4)) {
+        handleHeartBeat();
+      } else if (handshakePacketVerify(command, heartShake5)) {
+        //Serial.println("Heartbeat check TO chase car complete");
+        waitCount = 0;
+        waiting = 0;
+      } else if (handshakePacketVerify(command, debuggingMode)) {
+        debuggingStart = millis();
+      }
+    }
+  }
+
+  if (waiting == 1) {
+    waitCount++;
+    if (waitCount > waitLimit) {
+      //Serial.println("Heartbeat check TO chase car timed out, entering listening mode");
+      waitCount = 0;
+      waiting = 0;
+      debuggingStart = 0;
+      countingFlag = 0;
+      previousTime = 0;
+      state = LISTENING;
+      return;
+    }
+  } else {
+    if (beatCount > heartBeat) {
+      beatCount = 0;
+      uint8_t hs4[] = {heartShake4};
+      Tx64Request tx = Tx64Request(chaseCarXBEE, hs4, sizeof(hs4));
+      xbee.send(tx);
+      //Serial.println("Heartbeat check TO chase car sent");
+      waiting = 1;
+    }
+  }
+  
+  if (msg != NULL) {
+    if (countingFlag) {
+      if ((time - baseTime) > (90*interval)) {
+        histogram[0] = packetHistogram;
+        Tx64Request tx = Tx64Request(chaseCarXBEE, histogram, 91);
+        xbee.send(tx);
+        countingFlag = 0;
+        baseTime = 0;
+        previousTime = 0;
+        if (waiting == 0) {
+          beatCount++;
+        }
+        return;
+      }
+      long timeDiff = time - previousTime;
+      uint8_t index = timeDiff/interval;
+      if (index < 90) {
+        histogram[index+1] = histogram[index+1] + 1;
+        previousTime = time;
+      }
+    } else {
+      baseTime = time;
+      countingFlag = 1;
+      for (int i = 1; i < 91; i++) {
+        histogram[i] = 0;
+      }
+    }
+  }
+}
+  
+  
+
 void loop() {
   
   //Serial.println("Entering loop");
-  Serial.print("CAN Buffer: ");
-  Serial.println(CanBufferSize());
+  //Serial.print("CAN Buffer: ");
+  //Serial.println(CanBufferSize());
   CanMessage *msg = NULL;
+  long time;
+  
   if (CanBufferSize()) {
     msg = &CanBufferRead();
+    time = millis();
   }
   
   switch (state) {
@@ -213,5 +315,10 @@ void loop() {
     //Serial.println("Sending mode");
       Sending(msg);
       break;
+      
+    case DEBUGGING:
+      Debugging(msg, time);
+      break;
+      
   }
 }
