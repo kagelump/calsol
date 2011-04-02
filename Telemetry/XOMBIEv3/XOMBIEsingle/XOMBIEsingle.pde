@@ -37,7 +37,7 @@ long debuggingStart = 0;
 long debuggingTime = 10000;
 int packetHistogram = 0xC2;
 
-boolean debuggingFlag = 1;
+boolean debuggingFlag = 0;
 boolean countingFlag = 0;
 long baseTime = 0;
 long previousTime = 0;
@@ -293,12 +293,10 @@ void loop() {
   //Serial.print("CAN Buffer: ");
   //Serial.println(CanBufferSize());
   CanMessage *msg = NULL;
-  long time;
-  
   if (CanBufferSize()) {
     msg = &CanBufferRead();
-    time = millis();
   }
+  long time = millis();
   
   switch (state) {
     case LISTENING:
