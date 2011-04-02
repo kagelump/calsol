@@ -1,4 +1,5 @@
 #include <XBee.h>
+#include "pack.c"
 
 #define DTR_PIN 16
 #define RTS_PIN 13
@@ -14,7 +15,7 @@
 
 XBee xbee = XBee();
 XBeeAddress64 chaseCarXBEE = XBeeAddress64(0x13A200, 0x405D032A);
-XBeeAddress64 brainXBEE = XBeeAddress64(0x0013A2, 0x0040621D3B);
+
 
 int state = LISTENING;
 int transitionCount = 0;
@@ -31,140 +32,69 @@ int handShake3 = 0x83;
 int heartShake4 = 0x84;
 int heartShake5 = 0x85;
 
-uint8_t encodeFirstByte(uint32_t a) {
-  uint32_t* p_a = &a;
-  uint8_t* p_b = (uint8_t*) p_a;
-  return *p_b;
-}
+void setup() {
+    pinMode(DTR_PIN, OUTPUT);
+    pinMode(RTS_PIN, OUTPUT);
+    pinMode(CTS_PIN, INPUT);
+    pinMode(SLEEP_PIN, INPUT);
+    pinMode(DI01_PIN, INPUT);
+    pinMode(RESET_PIN, OUTPUT);
+    pinMode(OE_PIN, OUTPUT);
 
-void decodeFirstByte(uint8_t* src, uint32_t* p32_dest) {
-  uint8_t* p8_dest = (uint8_t*) p32_dest;
-  *p8_dest = *src;
-}
+    digitalWrite(DTR_PIN, HIGH);
+    digitalWrite(RTS_PIN, LOW);
+    digitalWrite(RESET_PIN, HIGH);
+    digitalWrite(OE_PIN, HIGH);
 
-uint8_t encodeSecondByte(uint32_t a) {
-  uint32_t* p_a = &a;
-  uint8_t* p_b = (uint8_t*) p_a;
-  return *(p_b + 1);
-}
-
-void decodeSecondByte(uint8_t* src, uint32_t* p32_dest) {
-  uint8_t* p8_dest = (uint8_t*) p32_dest;
-  *(p8_dest + 1) = *(src + 1);
-}
-
-uint8_t encodeThirdByte(uint32_t a) {
-  uint32_t* p_a = &a;
-  uint8_t* p_b = (uint8_t*) p_a;
-  return *(p_b + 2);
-}
-
-void decodeThirdByte(uint8_t* src, uint32_t* p32_dest) {
-  uint8_t* p8_dest = (uint8_t*) p32_dest;
-  *(p8_dest + 2) = *(src + 2);
-}
-
-uint8_t encodeFourthByte(uint32_t a) {
-  uint32_t* p_a = &a;
-  uint8_t* p_b = (uint8_t*) p_a;
-  return *(p_b + 3);
-}
-
-void decodeFourthByte(uint8_t* src, uint32_t* p32_dest) {
-  uint8_t* p8_dest = (uint8_t*) p32_dest;
-  *(p8_dest + 3) = *(src + 3);
-}
-
-/**
- *  Modifies the dest array to encode the int src
- *  @param src   - The data to be encoded. Assumes 32-bit ints
- *  @param dest - The array to store the encoded data. 
- *                Expects room for at least 4 bytes.
- */ 
-void encode(uint32_t src, uint8_t* dest) {
-  dest[0] = encodeFirstByte(src);
-  dest[1] = encodeSecondByte(src);
-  dest[2] = encodeThirdByte(src);
-  dest[3] = encodeFourthByte(src);
-}
-
-/**
- *  Modifiers the dest pointer to decode the dest array
- *  @param src   - The pointer to the data to decode. Must have
- *                 at least 4 bytes of data.
- *  @param dest  - A pointer to the memory location that will
- *                 contain the decoded message
- */
-void decode(uint8_t* src, uint32_t* dest) {
-  decodeFirstByte(src, dest);
-  decodeSecondByte(src, dest);
-  decodeThirdByte(src, dest);
-  decodeFourthByte(src, dest);
+    xbee.setSerial(Serial1);
+    xbee.begin(57600);
+    Serial.begin(57600);
+    //Serial.println("Starting serial");
+    Can.begin(500);
+    CanBufferInit();
+    //Serial.println("Starting CAN");
 }
 
 //Returns whether the command packet contains the given handshake
 boolean handshakePacketVerify(Rx64Response command, int handshake) {
   uint8_t* data = command.getData();
   XBeeAddress64 sender = command.getRemoteAddress64();
-//  Serial.print("Sender Address: ");
-//  Serial.print(sender.getMsb());
-//  Serial.println(sender.getLsb());
-//  Serial.print("Data: ");
+  //Serial.print("Sender Address: ");
+  //Serial.print(sender.getMsb());
+  //Serial.println(sender.getLsb());
+  //Serial.print("Data: ");
   short dat1 = data[0];
-//  Serial.println(dat1);
+  //Serial.println(dat1);
   return (sender.getMsb() == chaseCarXBEE.getMsb()) && (sender.getLsb() == chaseCarXBEE.getLsb()) && (data[0] == handshake);
 }
 
 //Responds to the heartbeat check from the chasecar
 void handleHeartBeat() {
-//  Serial.println("Heartbeat check FROM chase car");
+  //Serial.println("Heartbeat check FROM chase car");
   uint8_t hs5[] = {heartShake5};
   Tx64Request tx = Tx64Request(chaseCarXBEE, hs5, sizeof(hs5));
   xbee.send(tx);
-//  Serial.println("Heartbeat check FROM car completed");
-}
-
-void setup() {
-	pinMode(DTR_PIN, OUTPUT);
-	pinMode(RTS_PIN, OUTPUT);
-	pinMode(CTS_PIN, INPUT);
-	pinMode(SLEEP_PIN, INPUT);
-	pinMode(DI01_PIN, INPUT);
-	pinMode(RESET_PIN, OUTPUT);
-	pinMode(OE_PIN, OUTPUT);
-
-	digitalWrite(DTR_PIN, HIGH);
-	digitalWrite(RTS_PIN, LOW);
-	digitalWrite(RESET_PIN, HIGH);
-	digitalWrite(OE_PIN, HIGH);
-
-        xbee.setSerial(Serial1);
-	xbee.begin(57600);
-        Serial.begin(57600);
-//        Serial.println("Starting serial");
-        Can.begin(1000);
-        CanBufferInit();
-//        Serial.println("Starting CAN");
+  //Serial.println("Heartbeat check FROM car completed");
 }
   
 void Listening() {
   if (xbee.readPacket(1)) {
     XBeeResponse response = xbee.getResponse();
-//    Serial.print("Packet read of type: ");
+    //Serial.print("Packet read of type: ");
     short id = response.getApiId();
-//    Serial.println(id);
+    //Serial.println(id);
     if (response.getApiId() == RX_64_RESPONSE) {
       Rx64Response command;
       response.getRx64Response(command);
       if(handshakePacketVerify(command, handShake1)) {
-//        Serial.println("Handshake 1 received, sending handshake 2");
+        //Serial.println("Handshake 1 received, sending handshake 2");
         long time = millis();
         uint8_t hs2[5];
         hs2[0] = handShake2;
-        encode(time, (hs2 + 1));
+        encode((uint32_t) time, (uint8_t*) (hs2 + 1));
         Tx64Request tx = Tx64Request(chaseCarXBEE, hs2, sizeof(hs2));
         xbee.send(tx);
-//        Serial.println("Handshake 2 sent, entering transition mode");
+        //Serial.println("Handshake 2 sent, entering transition mode");
         state = TRANSITION;
       }
     }
@@ -174,14 +104,14 @@ void Listening() {
 void Transition() {
   if (xbee.readPacket(1)) {
     XBeeResponse response = xbee.getResponse();
-//    Serial.print("Packet read of type: ");
+    //Serial.print("Packet read of type: ");
     short id = response.getApiId();
-//    Serial.println(id);
+    //Serial.println(id);
     if (response.getApiId() == RX_64_RESPONSE) {
       Rx64Response command;
       response.getRx64Response(command);
       if (handshakePacketVerify(command, handShake3)) {
-//        Serial.println("Handshake 3 received, entering sending mode");
+        //Serial.println("Handshake 3 received, entering sending mode");
         transitionCount = 0;
         state = SENDING;
         return;
@@ -191,7 +121,7 @@ void Transition() {
   
   transitionCount++;
   if (transitionCount > transitionLimit) {
-//    Serial.println("Transition limit exceeded, entering listening mode");
+    //Serial.println("Transition limit exceeded, entering listening mode");
     transitionCount = 0;
     state = LISTENING;
   }
@@ -199,16 +129,16 @@ void Transition() {
 
 void Sending(CanMessage *msg) {
   while (xbee.readPacket(1)) {
-//    Serial.println("Reading XBee packet");
+    //Serial.println("Reading XBee packet");
     XBeeResponse response = xbee.getResponse();
     if (response.getApiId() == RX_64_RESPONSE) {
-//      Serial.println("Command message obtained");
+      //Serial.println("Command message obtained");
       Rx64Response command;
       response.getRx64Response(command);
       if (handshakePacketVerify(command, heartShake4)) {
         handleHeartBeat();
       } else if (handshakePacketVerify(command, heartShake5)) {
-//        Serial.println("Heartbeat check TO chase car complete");
+        //Serial.println("Heartbeat check TO chase car complete");
         waitCount = 0;
         waiting = 0;
       }
@@ -218,7 +148,7 @@ void Sending(CanMessage *msg) {
   if (waiting == 1) {
     waitCount++;
     if (waitCount > waitLimit) {
-//      Serial.println("Heartbeat check TO chase car timed out, entering listening mode");
+      //Serial.println("Heartbeat check TO chase car timed out, entering listening mode");
       waitCount = 0;
       waiting = 0;
       state = LISTENING;
@@ -230,13 +160,13 @@ void Sending(CanMessage *msg) {
       uint8_t hs4[] = {heartShake4};
       Tx64Request tx = Tx64Request(chaseCarXBEE, hs4, sizeof(hs4));
       xbee.send(tx);
-//      Serial.println("Heartbeat check TO chase car sent");
+      //Serial.println("Heartbeat check TO chase car sent");
       waiting = 1;
     }
   }
   
   if (msg != NULL) {
-//    Serial.println("CAN message obtained");
+    //Serial.println("CAN message obtained");
     uint8_t message[14];
     uint16_t id = msg->id;
     uint8_t len = msg->len;
@@ -251,7 +181,7 @@ void Sending(CanMessage *msg) {
     
     Tx64Request tx = Tx64Request(chaseCarXBEE, message, msg->len + 6);
     xbee.send(tx);
-//    Serial.println("CAN message sent");
+    //Serial.println("CAN message sent");
     if (waiting == 0) {
       beatCount++;
     }
@@ -260,7 +190,7 @@ void Sending(CanMessage *msg) {
 
 void loop() {
   
-//  Serial.println("Entering loop");
+  //Serial.println("Entering loop");
   Serial.print("CAN Buffer: ");
   Serial.println(CanBufferSize());
   CanMessage *msg = NULL;
@@ -268,29 +198,20 @@ void loop() {
     msg = &CanBufferRead();
   }
   
-  switch (state)
-  {
+  switch (state) {
     case LISTENING:
-    {
-//      Serial.println("Listening mode");
+      //Serial.println("Listening mode");
       Listening();
       break;
-    }
     
     case TRANSITION:
-    {
-//      Serial.println("Transition mode");
+      //Serial.println("Transition mode");
       Transition();
       break;
-    }
     
     case SENDING:
-    {
-//      Serial.println("Sending mode");
+    //Serial.println("Sending mode");
       Sending(msg);
       break;
-    }
-    
-//    Serial.println("ERROR: Unknown state");
   }
 }
