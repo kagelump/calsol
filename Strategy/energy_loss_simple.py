@@ -3,6 +3,7 @@ import sys, math
 route = None
 
 def calcdE(startPos, speed, time):
+    # startPos format (lat, lon, alt)
     global route
     if not route:
         print 'route not loaded!!!'
@@ -16,8 +17,13 @@ def calcdE(startPos, speed, time):
     startDist = route[pti][3]
     currentDist = startDist
     
-    distStep = distance(startPos, route[pti])
-    dE += energyStep(startPos, route[pti], distStep, speed)
+    firstCoord = startPos[0:2] +\
+        (route[pti][2],) +\
+        (route[pti][3] + distance(startPos, route[pti]),)
+    print 'firstCoord:', firstCoord    
+    print 'closestPt:', route[pti]
+    distStep = distance(firstCoord, route[pti])
+    dE += energyStep(firstCoord, route[pti], distStep, speed)
     currentDist += distStep
 
     lastCoord = route[pti]
@@ -27,9 +33,11 @@ def calcdE(startPos, speed, time):
         
         distStep = route[pti][3] - lastCoord[3]
         dE += energyStep(route[pti], lastCoord, distStep, speed)
-        print 'dE:', dE
+        #print 'dE:', dE
         lastCoord = route[pti]
         pti += 1
+    print 'distance:', currentDist-startDist
+    #return (dE, route[pti-1])
     return dE
 
 def energyStep(start, end, dist, speed):
@@ -144,15 +152,14 @@ if __name__ == '__main__':
     MOTOR_VOLTAGE = 0
 
     
-    time = 1000 #seconds left in race
-    start_pos = (138, -34, 41, 10) #longitude, latitude, meters above sea level
-    speed = lambda x: 30 #km/h speed parametrized on something
+    time = 60*60 #seconds left in race
+    start_pos = (-12, 130) #longitude, latitude, meters above sea level
+    speed = lambda x: 10 #m/s speed parametrized on something
 
     
     load_data()
     dE = calcdE(start_pos, speed, time)
     print 'dE:', dE
-    
     print 'done'
 
 
