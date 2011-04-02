@@ -10,19 +10,20 @@ import argparse
 import sys
 import simplejson as json
 
-def depthFirst(root, target):
+"""
+EVERYTHING SHOULD BE LATTITUDE, LONGITUDE
+"""
+
+def depthFirst(root, target, ret = []):
 	"""
 	  Depth first traversal of the kml tree.
 	  Returns an accumulation of the contents of all nodes
 	  of type target 
 	"""
-	def helper(root, target, accumulation):
-		for child in root:
-			helper(child, target, accumulation)
-			if child.tag == target:
-				accumulation += [child.text]
-	ret = []
-	helper(root, target, ret)
+	for child in root:
+		depthFirst(child, target, ret)
+		if child.tag == target:
+			ret += [child.text]
 	return ret
 
 def parseCoords(coordList):
@@ -44,9 +45,12 @@ def parseCoords(coordList):
 		if len(coords) > 3:
 			coords = map(lambda x: x.split(","), coords)
 			coords = map(lambda x: tuple(map(float, x)), coords)
-			#print "returning:", coords
+			coords = map(lambda x: (x[1], x[0]), coords)
+			
+			#print 'returning:', coords
 			return coords
-		return []
+		else:
+			return []
 	
 	ret = []
 	#print "coordList:", coordList
@@ -66,45 +70,61 @@ def filterDups(coordList):
 	ret += [coordList[-1]]
 	return ret
 
+def toRad(x):
+	return x * 2 * math.pi / 360.
+
 def distance(coord1, coord2):
+	import math
 	# http://www.movable-type.co.uk/scripts/latlong.html
-	R = 6371 # radius of the earth in km
-	if coord1 == coord2:
+	R = 6371000 # radius of the earth in km
+	if coord1[:2] == coord2[:2]:
 		return 0
 	else:
-		d = acos(sin(coord1[1])*sin(coord2[1]) + 
-				 cos(coord1[1])*cos(coord2[1]) *
-				 cos(coord2[0]-coord1[0])) * R
+		lat1, lon1 = map(toRad, coord1[0:2])
+		lat2, lon2 = map(toRad, coord2[0:2])
+		d = acos(sin(lat1)*sin(lat2) + 
+			 cos(lat1)*cos(lat2) *
+			 cos(lon1-lon2)) * R
 		return d # distance along spherical globe in km
 
-def formatCoord(coord):
-	# be careful, google's kml lists longitude first
-	lon, lat, _ = coord
-	return "%f,%f" % (lat, lon)
+def calcDistances(route):
+	'''
+	  route is a list [((lat, lon), alt) ... ]
+	'''
+	ret = []
+	ret.append(route[0] + (0,))
+	for i in range(1, len(route)):
+		dist = distance(route[i][0], route[i-1][0])
+		print 'route[', i, ']:', route[i]
+		print 'd ', i-1, ':', ret[i-1][-1]
+		print 'd ', i, ':', dist
+		print 'tot dist:', ret[i-1][-1] + dist
+		print '='*10, '\n'
+		ret.append(route[i] + (ret[i-1][-1]+dist,))
+	return ret
 
-def getEdgeElevations(edges, sample_rate, **elvtn_args):
+
+def getEdgeElevations(edges, groupSize = 50):
 	"""
 	  Ask google very nicely to share their elevation data with us.
 	  Returns a list of (longitude, latitude, altitude) tuples
+	  
+	  groupSizes have the potential to be too large for
+	  Google to give a response. It's best not to go over 50 
 	"""
 	ret = []
-	for i in range(0, len(edges)-1):
-		start, dist = edges[i]
-		end, _ = edges[i+1]
+	i = 0
+	while i < len(edges):
+		points = ""
+		j = i
+		while j < len(edges) and j < i + groupSize:
+			#print "loc:", edges[j]
+			points += "%f,%f|" % edges[j]
+			j += 1
+		points = points[:-1] #chop off the last |
 		
-		"""
-		I couldn't get this to format properly
-		elvtn_args.update({
-	        'path': "%s|%s" % (formatCoord(start), formatCoord(end)),
-	        'samples': max(ceil(dist/sample_rate), 2),
-	        'sensor': "false"
-	      })
-		url = ELEVATION_BASE_URL + urllib.urlencode(elvtn_args)
-		"""
-		# samples over 500 tend to get "DATA_NOT_AVAILABLE"
-		sampleCount = min(max(ceil(dist/sample_rate), 2), 500)
-		url = ELEVATION_BASE_URL + "path=%s|%s&samples=%d&sensor=false" % (formatCoord(start), formatCoord(end), sampleCount)
-		
+		url = ELEVATION_BASE_URL + "locations=%s&sensor=false" % (points)
+		print 'url:', url
 		response = json.load(urllib.urlopen(url))
 		
 		if response['status'] != 'OK':
@@ -126,13 +146,15 @@ def getEdgeElevations(edges, sample_rate, **elvtn_args):
 			print "query", i, "ok:", url
 		def makeTuple(x):
 			if 'elevation' not in x.keys():
-				return (x['location']['lng'], x['location']['lat'], -100000000000)
-			return (x['location']['lng'], x['location']['lat'], x['elevation'])
+				return ((x['location']['lat'], x['location']['lng']), -100000000000)
+			return ((x['location']['lat'], x['location']['lng']), x['elevation'])
 		# convert json to tuples
 		ret += map(makeTuple, response['results'])
+		i += groupSize
 	return (ret, i)
 
 if __name__ == '__main__':
+	import math
 	print "started"
 	
 	ELEVATION_BASE_URL = 'http://maps.googleapis.com/maps/api/elevation/json?'
@@ -141,7 +163,7 @@ if __name__ == '__main__':
 	altitude_sample_rate = 1 # altitude sample ever tenth of a mile
 	
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--input', default="../misc/CalSol.kml")
+	parser.add_argument('--input', default="./misc/CalSol.kml")
 	parser.add_argument('--start', default="0")
 	parser.add_argument('--end', default="-1")
 	args = parser.parse_args(sys.argv[1:])
@@ -159,20 +181,18 @@ if __name__ == '__main__':
 	if args.end == -1:
 		args.end = len(parsed_coords)
 	
-	edges = [] # edges are ((longitude, latitude, altitude), distance)
-	for i in range(0, len(parsed_coords)-1):
-		edges += [ (parsed_coords[i], distance(parsed_coords[i], parsed_coords[i+1])) ]
-	
 	# don't go over 2500 requests per day or Google will block you
-	altitudes, completed = getEdgeElevations(edges[args.start:args.end], altitude_sample_rate)
+	parsed_coords, completed = getEdgeElevations(parsed_coords[args.start:args.end])
 	
+	parsed_coords = calcDistances(parsed_coords)
+	print 'after calc D:', parsed_coords
 	#write the results to a csv
 	fileName = args.input+"_"+str(args.start)+"_"+str(args.end)+".csv"
 	print 'writing to:', fileName 
 	file = open(fileName, "w")
-	file.write("# latitude, longitude, elevation. completed %d\n" % completed)
-	for alt in altitudes:
-		file.write("%s,%s,%s\n" % (alt[1], alt[0], alt[2]))
+	file.write("# latitude, longitude, elevation in m above sea level, cumulative distance traveled in m. completed %d\n" % completed)
+	for p in parsed_coords:
+		file.write("%s,%s,%s,%s\n" % (p[0][0], p[0][1], p[1], p[2]))
 	file.close() 
 	
 	print "done"
