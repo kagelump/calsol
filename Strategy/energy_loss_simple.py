@@ -1,6 +1,18 @@
 import sys, math
 
 route = None
+MASS_CAR = 20 #kg
+GRAVITY = 9.8 #m/s2
+C1 = 0 #rolling constant
+C2 = 0
+C3 = 0
+CD = 0
+A = 0
+RHO = 0
+HV_CURRENT = 0
+HV_RESISTANCE = 0
+MOTOR_CURRENT = 0
+MOTOR_VOLTAGE = 0
 
 def powerConsumption(startPos, speed, time):
     # startPos format (lat, lon, alt)
@@ -20,8 +32,8 @@ def powerConsumption(startPos, speed, time):
     firstCoord = startPos[0:2] +\
         (route[pti][2],) +\
         (route[pti][3] + distance(startPos, route[pti]),)
-    print 'firstCoord:', firstCoord    
-    print 'closestPt:', route[pti]
+    #print 'firstCoord:', firstCoord    
+    #print 'closestPt:', route[pti]
     distStep = distance(firstCoord, route[pti])
     dE += energyStep(firstCoord, route[pti], distStep, speed)
     currentDist += distStep
@@ -36,7 +48,7 @@ def powerConsumption(startPos, speed, time):
         #print 'dE:', dE
         lastCoord = route[pti]
         pti += 1
-    print 'distance:', currentDist-startDist
+    #print 'distance:', currentDist-startDist
     #return (dE, route[pti-1])
     return dE
 
@@ -137,20 +149,6 @@ def load_data():
 
 if __name__ == '__main__':
     print 'started'
-
-    MASS_CAR = 20 #kg
-    GRAVITY = 9.8 #m/s2
-    C1 = 0 #rolling constant
-    C2 = 0
-    C3 = 0
-    CD = 0
-    A = 0
-    RHO = 0
-    HV_CURRENT = 0
-    HV_RESISTANCE = 0
-    MOTOR_CURRENT = 0
-    MOTOR_VOLTAGE = 0
-
     
     time = 60*60 #seconds left in race
     start_pos = (-12, 130) #longitude, latitude, meters above sea level

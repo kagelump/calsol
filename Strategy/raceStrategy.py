@@ -22,7 +22,7 @@ def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H
     # limit the number of iterations in case newton's method diverges
     iteration_limit = 200
     current_iteration = 0
-    dv = 0.001
+    dv = 0.01
     st = time.strptime("Oct 11 " + start_time, "%b %y %H:%M")
     et = time.strptime("Oct 11 " + end_time, "%b %y %H:%M")
     # use Newton's method to estimate root:
@@ -32,7 +32,10 @@ def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H
             return velocity_guess
         else: 
             # Update velocity guess value
+            print 'powerGeneration: ', powerGeneration(latitude, velocity_guess+dv, st, et, cloudy)
+            print 'powerConsumption: ', powerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st))
             E_prime = (powerGeneration(latitude, velocity_guess+dv, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st)) - energy_change) / dv
+            #print 'eprime: ', (powerGeneration(latitude, velocity_guess+dv, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st)))
             velocity_guess = velocity_guess - (energy_change - energy) / E_prime
             current_iteration+=1
     
