@@ -13,7 +13,7 @@ from viewer import config
 
 from viewer.ports import ask_for_port
 from viewer.sample import XOMBIEDecoder, XOMBIEStream, DataSource
-from viewer.util import link
+from viewer.util import link, find_icon
 
 from viewer.ViewWidget import TabViewContainer, NewTabViewSelector
 from viewer.HistGraph import HistoricalGraphTabView
@@ -97,6 +97,7 @@ class XOMBIEThread(QtCore.QThread):
         self.connection = conn
 
         self.timer = self.commit_timer = None
+        self.should_query = False
         
         link(self.started, self.setup)
 
@@ -115,6 +116,7 @@ class XOMBIEThread(QtCore.QThread):
         link(self.timer.timeout, self.process)
 
         self.stream.add_callback(0x85, self.mark_heartbeat)
+        self.stream.add_callback(0xC2, self.print_histogram)
         self.stream.start()
 
         self.commit_timer.start(5000)
@@ -130,6 +132,11 @@ class XOMBIEThread(QtCore.QThread):
                 send a heartbeat request to make sure that
                 they're still there.
         """
+        if self.should_query:
+            self.should_query = False
+            self.stream.logger.info("Requesting CAN BUS Status Query")
+            self.stream.send_no_ack("\xc1")
+        
         five_seconds = datetime.timedelta(seconds=5)
         if self.stream.state is XOMBIEStream.UNASSOCIATED:
             self.stream.send_handshake1()
@@ -169,6 +176,16 @@ class XOMBIEThread(QtCore.QThread):
         if self.checking_heartbeat:
             self.got_heartbeat = True
             self.stream.logger.info("Got heartbeat response")
+
+    def print_histogram(self, counts):
+        interval = 5
+        self.stream.logger.info("----Histogram-------------")
+        for i, count in enumerate(counts):
+            if count:
+                self.stream.logger.info("%3d-%3dms: %d",
+                                        i*interval,
+                                        interval*(i+1),
+                                        count)
 
     def insert_data(self, cursor, id_, name, t, data):
         cmd = "INSERT INTO data(id, name, time, data) VALUES (?,?,?,?)"
@@ -218,7 +235,7 @@ class TelemetryApp(QtGui.QApplication):
                                       detect_types=(sql.PARSE_DECLTYPES
                                                     | sql.PARSE_COLNAMES))
 
-        self.config_database(self.connection, True)
+        self.config_database(self.connection, False)
         
         desc_sets = self.load_can_descriptors()
         decoder = XOMBIEDecoder([desc_set for (source, desc_set) in desc_sets])
@@ -330,7 +347,7 @@ class TelemetryViewerWindow(QtGui.QMainWindow):
         self.tab_types = []
         for view in [LiveGraphTabView, HistoricalGraphTabView, BatteryScatterPlotTabView]:
             self.tab_types.append((view.view_name,
-                                   self.find_icon(view.view_icon),
+                                   find_icon(view.view_icon),
                                    view.view_desc,
                                    view.view_id))
 
@@ -357,18 +374,6 @@ class TelemetryViewerWindow(QtGui.QMainWindow):
 
         self.console_timer.start(50)
         self.redraw_timer.start(100)
-
-
-    def find_icon(self, name):
-        if name in self.icon_cache:
-            return self.icon_cache[name]
-        else:
-            try:
-                icon = QtGui.QIcon(os.path.join("icons", name))
-            except:
-                return None
-            self.icon_cache[name] = icon
-            return icon
 
     def json_friendly(self):
         return [(self.tabWidget.tabText(i), self.tabWidget.widget(i).json_friendly())
@@ -450,13 +455,26 @@ class TelemetryViewerWindow(QtGui.QMainWindow):
 
         self.toolBar.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
 
-        self.makeTabIcon = self.find_icon("list-add.png")
+        self.makeTabIcon = find_icon("list-add.png")
         self.makeTabAction = QtGui.QAction(self.makeTabIcon, " ", self)
         link(self.makeTabAction.triggered, self.make_new_tab)
 
         self.makeTabButton = QtGui.QToolButton()
         self.makeTabButton.setDefaultAction(self.makeTabAction)
         self.toolBar.addWidget(self.makeTabButton)
+
+        self.sendQueryIcon = find_icon("emblem-system.png")
+        self.sendQueryAction = QtGui.QAction(self.sendQueryIcon, "", self)
+
+        self.sendQueryButton = QtGui.QToolButton()
+        self.sendQueryButton.setDefaultAction(self.sendQueryAction)
+        self.toolBar.addWidget(self.sendQueryButton)
+
+        def trigger_xombie_query():
+            if self.app.xombie_thread.isRunning():
+                app.xombie_thread.should_query = True
+        
+        link(self.sendQueryAction.triggered, trigger_xombie_query)
         
         self.addToolBar(QtCore.Qt.TopToolBarArea, self.toolBar)
         #self.insertToolBarBreak(self.toolBar)
@@ -476,24 +494,29 @@ class TelemetryViewerWindow(QtGui.QMainWindow):
         if not descs:
             return
 
-        for [tab_name, desc] in descs:
-            if desc["type"] == LiveGraphTabView.view_id:
-                new_tab = LiveGraphTabView.from_json(desc, self.tabWidget,
-                                                     find_source)
-            elif desc["type"] == NewTabViewSelector.view_id:
-                new_tab = NewTabViewSelector.from_json(desc, self.tabWidget,
-                                                       self.tab_types,
-                                                       self.transform_tab)
-##            elif desc["type"] == HistoricalGraphTabView.view_id:
-##                new_tab = HistoricalGraphTabView.from_json(desc, self.tabWidget,
-##                                                 self.app.can_descriptors,
-##                                                 self.app.connection)
-            else:
+        for i, [tab_name, desc] in enumerate(descs):
+            try:
+                if desc["type"] == LiveGraphTabView.view_id:
+                    new_tab = LiveGraphTabView.from_json(desc, self.tabWidget,
+                                                         find_source)
+                elif desc["type"] == NewTabViewSelector.view_id:
+                    new_tab = NewTabViewSelector.from_json(desc, self.tabWidget,
+                                                           self.tab_types,
+                                                           self.transform_tab)
+                elif desc["type"] == HistoricalGraphTabView.view_id:
+                    new_tab = HistoricalGraphTabView.from_json(desc, self.tabWidget,
+                                                     self.app.can_descriptors,
+                                                     self.app.connection)
+                else:
+                    continue
+            except BaseException as e:
+                print ("Error occurred while setting up tab #%d \"%s\": %s"
+                       % (i + 1, tab_name, e))
                 continue
 
             icon = None
             if desc.get("icon") is not None:
-                icon = self.find_icon(desc.get("icon"))
+                icon = find_icon(desc.get("icon"))
                 if icon is None:
                     print "Warning: couldn't load icon '%s'" % icon
             
@@ -515,7 +538,7 @@ class TelemetryViewerWindow(QtGui.QMainWindow):
         new_tab = NewTabViewSelector(self.tabWidget, self.tab_types, self.tabWidget)
         if new_tab.view_icon:
             self.tabWidget.addTab(new_tab,
-                                  self.find_icon(new_tab.view_icon),
+                                  find_icon(new_tab.view_icon),
                                   "A New Tab")
         else:
             self.tabWidget.addTab(new_tab, "A New Tab")
@@ -535,9 +558,9 @@ class TelemetryViewerWindow(QtGui.QMainWindow):
                                              self.app.connection)
         
         if hasattr(new_tab, "icon"):
-            icon = self.find_icon(new_tab.icon)
+            icon = find_icon(new_tab.icon)
         else:
-            icon = self.find_icon(new_tab.view_icon)
+            icon = find_icon(new_tab.view_icon)
         self.tabWidget.replace_tab(new_tab, icon)
 
     def update_colors(self):

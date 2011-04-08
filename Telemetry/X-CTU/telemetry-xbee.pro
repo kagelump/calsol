@@ -7,7 +7,7 @@ FE
 [A]CH=C
 [A]ID=CA15
 [A]DH=0
-[A]DL=FFFF
+[A]DL=0
 [A]MY=FFFF
 [A]MM=0
 [A]RR=0
@@ -20,8 +20,8 @@ FE
 [A]A1=0
 [A]A2=0
 [A]EE=0
-[A]NI=CALSOL-TMTRY-CHASEP
-[A]PL=4
+[A]NI=CALSOL-TMTRY-CHASE
+[A]PL=1
 [A]CA=2C
 [A]SM=0
 [A]ST=1388
@@ -31,7 +31,7 @@ FE
 [A]BD=6
 [A]NB=0
 [A]RO=3
-[A]AP=1
+[A]AP=2
 [A]PR=FF
 [A]D8=0
 [A]D7=1

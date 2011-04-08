@@ -7,7 +7,7 @@ from PySide import QtGui, QtCore
 from backend_pysideagg import FigureCanvasQTAgg as FigureCanvas
 from DatePlot import DatetimeCollection, KenLocator, KenFormatter
 from GraphData import XOMBIESQLIntervalView
-from SignalWidget import SignalTreeWidget
+from SignalWidget import SignalTreeWidget, SignalListEditorDialog
 from ViewWidget import BaseTabViewWidget
 
 from LiveGraph import CustomDateTimeEdit
@@ -35,82 +35,32 @@ class HistoricalGraphTabView(BaseTabViewWidget):
 
         desc_map = {}
         for fname, desc_set in desc_sets:
-            for id_, desc in desc_set.items():
-                for [name, units, desc] in desc.get("messages", []):
-                    desc_map[id_+":"+name] = desc
+            for id_, descr in desc_set.items():
+                for [name, units, desc] in descr.get("messages", []):
+                    desc_map[id_+":"+name] = descr
         
         self.plotWidget = HistoricalPlot(desc_map, connection, self)
-
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
-                                       QtGui.QSizePolicy.Expanding)
-        sizePolicy.setHorizontalStretch(1)
-        sizePolicy.setVerticalStretch(1)
-        sizePolicy.setHeightForWidth(self.plotWidget.sizePolicy().hasHeightForWidth())
-        self.plotWidget.setSizePolicy(sizePolicy)
-        self.plotWidget.setMinimumSize(QtCore.QSize(400,150))
-        self.plotWidget.resize(400, 150)
-
-        
-        self.controls = ControlWidget(self.plotWidget, self)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
-                                       QtGui.QSizePolicy.Fixed)
-        sizePolicy.setHeightForWidth(self.controls.sizePolicy().hasHeightForWidth())
-        self.controls.setSizePolicy(sizePolicy)
-        self.controls.setMinimumSize(QtCore.QSize(400,50))
-        
-        self.legend = LegendWidget(self.plotWidget, self)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
-                                       QtGui.QSizePolicy.Expanding)
-        sizePolicy.setHeightForWidth(self.legend.sizePolicy().hasHeightForWidth())
-        self.legend.setSizePolicy(sizePolicy)
-        self.legend.setMinimumSize(QtCore.QSize(100,200))
-
-        
-
-        self.layout = QtGui.QHBoxLayout(self)
-        self.splitter = QtGui.QSplitter(self, QtCore.Qt.Horizontal)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
-        sizePolicy.setHorizontalStretch(1)
-        sizePolicy.setVerticalStretch(1)
-        sizePolicy.setHeightForWidth(self.splitter.sizePolicy().hasHeightForWidth())
-        self.splitter.setSizePolicy(sizePolicy)
-        self.layout.addWidget(self.splitter)
-
-        self.splitter.addWidget(self.legend)
-
-        container = QtGui.QWidget(self)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
-                                       QtGui.QSizePolicy.Expanding)
-        sizePolicy.setHorizontalStretch(1)
-        sizePolicy.setVerticalStretch(1)
-        container.setSizePolicy(sizePolicy)
-        size = QtCore.QSize(self.plotWidget.minimumWidth() + self.controls.minimumWidth(),
-                            self.plotWidget.minimumHeight() + self.controls.minimumHeight())
-        container.setMinimumSize(size)
-        
-        subLayout = QtGui.QVBoxLayout(container)
-        subLayout.addWidget(self.plotWidget)
-        subLayout.addWidget(self.controls)
-
-        container.setLayout(subLayout)
-        self.splitter.addWidget(container)
-
+        self.controlWidget = ControlWidget(self.plotWidget, parent=self)
+        self.layout = QtGui.QVBoxLayout(self)
+        self.layout.addWidget(self.plotWidget)
+        self.layout.addWidget(self.controlWidget)
         self.setLayout(self.layout)
-
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
-                                       QtGui.QSizePolicy.Expanding)
-        self.setSizePolicy(sizePolicy)
 
     def json_friendly(self):
         json = BaseTabViewWidget.json_friendly(self)
-        #do_stuff_here(json)
+        self.plotWidget.add_json(json)
         return json
 
     @classmethod
-    def from_json(cls, json, tab_bar, find_source, parent=None):
-        tab = cls(tab_bar, find_source, parent)
-        #do_stuff_with(tab, json)
-        return tab
+    def from_json(cls, json, tab_bar, desc_sets, connection, parent=None):
+        tab = cls(tab_bar, desc_sets, connection, parent)
+        start, end = map(mdates.num2date, json["xview"])
+        tab.plotWidget.update_bounds(start, end)
+        tab.controlWidget.left_dt_control.setPyDateTime(start)
+        tab.controlWidget.right_dt_control.setPyDateTime(end)
+
+        for ident, descr in json["signals"].items():
+            self.add_signal(descr)
 
     def redraw(self):
         self.plotWidget.redraw()
@@ -121,6 +71,16 @@ class HistoricalGraphTabView(BaseTabViewWidget):
     def update_view(self, now):
         pass
 
+    def contextMenuEvent(self, event):
+        event.accept()
+
+        menu = QtGui.QMenu(self)
+        menu.addActions(self.tab_bar.actions())
+        menu.addSeparator()
+        menu.addActions(self.plotWidget.actions())
+        
+        menu.popup(event.globalPos())
+
 class HistoricalPlot(FigureCanvas):
     def __init__(self, desc_map, connection, parent=None):
         figure = Figure(figsize=(3,3), dpi=72)
@@ -130,84 +90,137 @@ class HistoricalPlot(FigureCanvas):
         self.connection = connection
         self.desc_map = desc_map
         
-        self.start = None
-        self.end = None
+        self.start = datetime.datetime.utcnow()
+        self.end = datetime.datetime.utcnow()
+
+        self.adjust_signals_action = QtGui.QAction("Adjust signals plotted", self)
+        self.addAction(self.adjust_signals_action)
+        
 
         self.views = {}
+        self.autoscale = True
+        self.showing_dialog = False
 
         FigureCanvas.setSizePolicy(self, QtGui.QSizePolicy.Expanding,
                                          QtGui.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
         
-
-        from numpy import arange, sin, pi
-
-        t = arange(0.0, 1.0, 0.01)
-
         self.plot = self.figure.add_subplot(111)
-        self.plot.plot(t, sin(2*pi*t))
-        self.plot.grid(True)
-        self.plot.set_ylim( (-2,2) )
-        self.plot.set_ylabel('1 Hz')
-        self.plot.set_title('A sine wave or two')
-        
         self.setAcceptDrops(True)
 
-    def resizeEvent(self, evt):
-        print "plot resize from %s to %s" % (evt.oldSize(), evt.size())
-        FigureCanvas.resizeEvent(self, evt)
+        link(self.adjust_signals_action.triggered, self.adjust_signals)
+
+    def adjust_signals(self):
+##        if self.showing_dialog:
+##            return
+        
+        dialog = SignalListEditorDialog(self)
+        descrs = []
+        for name in self.views:
+            descr = {"identifier":name,
+                     "color": [0.0, 0.0, 1.0, 1.0],
+                     "style": "solid"}
+            descrs.append(descr)
+        dialog.setup(descrs)
+
+##        def set_hidden():
+##            self.showing_dialog = False
+##
+##        link(dialog.closed, set_hidden)
+
+        dialog.show()
+        self.showing_dialog = True
+
+    def update_bounds(self, left, right):
+        if left is None:
+            left = self.start
+        if right is None:
+            right = self.end
+
+        if left > right:
+            left, right = right, left
+
+        self.start = left
+        self.end = right
+
+        self.plot.set_xbound(self.start,
+                             self.end)
+
+        locator = KenLocator(5)
+        self.plot.xaxis.set_major_locator(locator)
+        formatter = KenFormatter(locator)
+        self.plot.xaxis.set_major_formatter(formatter)
+        
+        for ident, (view, collection) in self.views.items():
+            view.load(self.start, self.end)
+            ymin, ymax = view.y_bounds
+            collection.set_segments([view.export()])
+            if self.autoscale:
+                cmin, cmax = self.plot.get_ybound()
+                self.plot.yaxis.set_view_interval(ymin, ymax, ignore=False)
+
+    def add_json(self, json):
+        json["xview"] = tuple(self.plot.get_xbound())
+        json["yview"] = tuple(self.plot.yaxis.get_view_interval())
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasFormat(SignalTreeWidget.mimeType):
             event.acceptProposedAction()
         else:
             event.ignore()
-
+    
     def dropEvent(self, event):
-        if event.mimeData().hasFormat(SignalTreeWidget.mimeType):
+        sources = SignalTreeWidget.getMimeDataSignals(event.mimeData())
+        if sources is not None:
             event.acceptProposedAction()
-            sources = event.mimeData().text().split("|")
             for name in sources:
-                self.add_signal(sources)
+                self.add_signal(name)
         else:
             event.ignore()
 
-    def add_signal(self, name):
-        if name in self.views:
+    def add_signal(self, descr):
+        ident = descr["identifier"]
+        if ident in self.views:
             return
-        desc = self.desc_map[name]
+        desc = self.desc_map[ident]
         if desc.get("non_numeric") in frozenset(["true", "True", True]):
             return
         
-        signal_id, signal_name = name.split(":", 1)
-        
-        self.views[name] = XOMBIESQLIntervalView(self.connection,
-                                                 signal_id, signal_name,
-                                                 self.start, self.end)
+        signal_id, signal_name = ident.split(":", 1)
+        collection = DatetimeCollection([])
+        self.plot.add_collection(collection)
+        view = XOMBIESQLIntervalView(self.connection, signal_id,
+                                     signal_name, self.start, self.end)
+        self.views[ident] = (view, collection)
+        collection.set_segments(view.export())
 
     def redraw(self):
         self.draw()
         self.figure.canvas.draw()
 
     def cleanup(self):
-        pass
+        for ident, (view, collection) in self.views.items():
+            collection.remove()
+    
 
 class ControlWidget(QtGui.QWidget):
-    def __init__(self, plot, parent=None):
+    def __init__(self, plot, start_date=None, end_date=None, parent=None):
         QtGui.QWidget.__init__(self, parent)
+        self.plot = plot
         self.layout = QtGui.QHBoxLayout(self)
 
-        self.left_dt_control = CustomDateTimeEdit()
-        self.right_dt_control = CustomDateTimeEdit()
+        self.left_dt_control = CustomDateTimeEdit(date=start_date, parent=self)
+        self.right_dt_control = CustomDateTimeEdit(date=end_date, parent=self)
         self.layout.addWidget(self.left_dt_control)
         self.layout.addWidget(self.right_dt_control)
         self.setLayout(self.layout)
 
-class LegendWidget(QtGui.QTreeWidget):
-    def __init__(self, plot, parent=None):
-        QtGui.QTreeWidget.__init__(self, parent)
-##        self.layout = QtGui.QHBoxLayout(self)
-##
-##        self.test_label = QtGui.QLabel("Legend goes here")
-##        self.layout.addWidget(self.test_label)
-##        self.setLayout(self.layout)
+        def update_left(dt):
+            self.plot.update_bounds(dt, None)
+
+        def update_right(dt):
+            self.plot.update_bounds(None, dt)
+
+        link(self.left_dt_control.pyDateTimeChanged, update_left)
+        link(self.right_dt_control.pyDateTimeChanged, update_right)
+

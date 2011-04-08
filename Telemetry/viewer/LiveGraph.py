@@ -93,9 +93,8 @@ class LiveGraphTabView(BaseTabViewWidget, FigureCanvas):
             event.ignore()
 
     def dropEvent(self, event):
-        if event.mimeData().hasFormat(SignalTreeWidget.mimeType):
-            data = str(event.mimeData().data(SignalTreeWidget.mimeType))
-            sources = json.loads(data)
+        sources = SignalTreeWidget.getMimeDataSignals(event.mimeData())
+        if sources is not None:
             event.acceptProposedAction()
             self.add_plot(sources)
         else:
@@ -433,7 +432,13 @@ class LiveSubplot(Subplot):
     def adjust_signals(self):
         print "Adjust sources selected"
         dialog = SignalListEditorDialog(self.parent)
-        dialog.setup([{"identifier":name} for name in self.signals])
+        descrs = []
+        for name in self.signals:
+            descr = {"identifier":name,
+                     "color": [0.0, 0.0, 1.0, 1.0],
+                     "style": "solid"}
+            descrs.append(descr)
+        dialog.setup(descrs)
 
         def say_hi(*args):
             print "Hi", args
@@ -446,6 +451,8 @@ class LiveSubplot(Subplot):
 
 
 class CustomDateTimeEdit(QtGui.QDateTimeEdit):
+
+    pyDateTimeChanged = QtCore.Signal([object])
     def __init__(self, date=None, time=None, parent=None):
         QtGui.QDateTimeEdit.__init__(self, parent)
         date = date if date is not None else QtCore.QDate.currentDate()
@@ -454,6 +461,8 @@ class CustomDateTimeEdit(QtGui.QDateTimeEdit):
         self.setDisplayFormat("ddd MM/dd/yyyy h:mm:ss AP")
 
         self.setCalendarPopup(True)
+        link(self.dateTimeChanged, self.emit_datetime)
+
 
     def pyDateTime(self):
         qdt = self.dateTime().toUTC()
@@ -462,3 +471,15 @@ class CustomDateTimeEdit(QtGui.QDateTimeEdit):
         dt = datetime.datetime(qdate.year(), qdate.month(), qdate.day(),
                                qtime.hour(), qtime.minute(), qtime.second())
         return dt
+
+    def emit_datetime(self, qdt):
+        qdate, qtime = qdt.date(), qdt.time()
+
+        dt = datetime.datetime(qdate.year(), qdate.month(), qdate.day(),
+                               qtime.hour(), qtime.minute(), qtime.second())
+        self.pyDateTimeChanged.emit(dt)
+
+    def setPyDateTime(self, dt):
+        qdate = QtCore.QDate(dt.year, dt.month, dt.day)
+        qtime = QtCore.QTime(dt.hour, dt.minute, dt.second)
+        qdt = QtCore.QDateTime(qdate, qtime)

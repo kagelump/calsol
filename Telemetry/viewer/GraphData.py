@@ -2,6 +2,7 @@ import collections
 import datetime
 import operator
 import bisect
+import json
 
 getx = operator.itemgetter(0)
 gety = operator.itemgetter(1)
@@ -74,12 +75,14 @@ class GraphData:
         self.data = []
 
 class XOMBIESQLIntervalView:
-    query_template = "SELECT id, name, time, data FROM data WHERE id = ? AND name = ? ? <= time AND time <= ? ORDER BY time;"
+    query_template = ("SELECT time, data FROM data"
+                      " WHERE id = ? AND name = ? AND"
+                      " ? <= time AND time <= ? ORDER BY time;")
     def __init__(self, connection, id_, name, start=datetime.datetime.min, end=datetime.datetime.max):
         self.connection = connection
-        self.id = id_
+        self.id = str(int(id_, 16))
         self.name = name
-        self.query = self.query_template % self.table
+        self.query = self.query_template
 
         self.peak = -2e308
         self.min = 2e308
@@ -107,7 +110,10 @@ class XOMBIESQLIntervalView:
         return bool(self.data)
 
     def fetch(self, start, end):
-        return self.connection.execute(self.query, (self.id, self.name, start, end))
+        data = self.connection.execute(self.query, (self.id, self.name, start, end))
+        for time, data_str in data:
+            yield time, json.loads(data_str)
+        return 
 
     def load(self, start, end):
         if start > end:

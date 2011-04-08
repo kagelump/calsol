@@ -226,6 +226,8 @@ class XOMBIEDecoder:
             return (x,)
         elif x == 0x85:
             return (x,)
+        elif x == 0xC2:
+            return (x, list(struct.unpack("<90B", msg[1:])))
         else:
             raise ValueError("Unknown command message with id=%#x" % x)
     
@@ -257,7 +259,8 @@ class XOMBIEDecoder:
             if "format" not in desc:
                 raise ValueError("No format specified for %#x:%s" % (ID, desc["name"]))
             if LEN != struct.calcsize("<" + str(desc["format"])):
-                raise ValueError("Error in decoding message id=%#x name=%s - length field mismatches descriptor" % (ID, desc["name"]))
+                raise ValueError("Error in decoding message id=%#x name=%s - length field %d mismatches descriptor %d"
+                                 % (ID, desc["name"], LEN, struct.calcsize("<" + str(desc["format"]))))
 
             DATA = struct.unpack("<" + str(desc["format"]), msg[6:6+LEN])
             
@@ -284,7 +287,8 @@ class XOMBIEDecoder:
             if ID in self.descriptors:
                 desc = self.descriptors[ID]
                 if LEN != struct.calcsize("<" + str(desc["format"])):
-                    raise ValueError("Error in decoding message id=%#x name=%s - length field mismatches descriptor" % (ID, desc["name"]))
+                    raise ValueError("Error in decoding message id=%#x name=%s - length field %d mismatches descriptor %d"
+                                     % (ID, desc["name"], LEN, struct.calcsize("<" + str(desc["format"]))))
 
                 DATA = struct.unpack("<" + str(desc["format"]), msg[6:6+LEN])
                 
@@ -369,6 +373,7 @@ class XOMBIEStream:
 
     def process(self, frame):
         #print frame
+        #print "\a"
         if frame["id"] == "rx_long_addr":
             alpha = 0.7
             rssi = -ord(frame["rssi"])
@@ -385,6 +390,7 @@ class XOMBIEStream:
                     command = self.decoder.decode_command(msg)
                 except ValueError as e:
                     self.logger.error("Error while decoding command packet: %s", e)
+                    print frame
                     return
                 if command[0] == 0x84:
                     self.logger.info("Got heartbeat request. Replying with heartbeat.")
@@ -405,7 +411,7 @@ class XOMBIEStream:
                     if 0x82 not in self.command_callbacks or not self.command_callbacks[0x82]():
                         self.send_handshake3()
                 elif command[0] in self.command_callbacks:
-                    self.command_callbacks[command[0]]()
+                    self.command_callbacks[command[0]](*command[1:])
                 else:
                     self.logger.warning("Got irrelevant command message %#x", command[0])
                     pass
@@ -420,6 +426,7 @@ class XOMBIEStream:
                         messages = list(self.decoder.decode_multi(msg))
                     except ValueError as e:
                         self.logger.error("Error while decoding data packet: %s", e)
+                        self.logger.error(" ".join([str(hex(ord(b))) for b in msg]))
                         return
                     for (offset, id_, desc, data) in messages:
                         dt = datetime.timedelta(seconds=(offset - self.rel_start)/1000.0)
@@ -429,12 +436,11 @@ class XOMBIEStream:
                             self.msg_queue.put((id_, msg_desc[0], self.abs_start+dt, datum))
                             #self.logger.info("Got packet %s = %s", ident, datum)
         elif frame["id"] == "tx_status":
-            if "frame_id" in frame:
-                (frame_id,) = struct.unpack(">B", frame["frame_id"])
-                if frame_id in self.frame_cache:
-                    data, callback = self.frame_cache.pop(frame_id)
-                    if callback:
-                        callback(frame)
+            (frame_id,) = struct.unpack(">B", frame["frame_id"])
+            if frame_id in self.frame_cache:
+                data, callback = self.frame_cache.pop(frame_id)
+                if callback:
+                    callback(frame)
 
     def put_data(self, identifier, datum, desc=None):
         if identifier not in self.data_table:

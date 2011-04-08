@@ -4,7 +4,7 @@ import re
 
 from PySide import QtGui, QtCore
 
-from util import link
+from util import link, find_icon
 
 class SignalTreeWidget(QtGui.QTreeWidget):
     """
@@ -30,7 +30,6 @@ class SignalTreeWidget(QtGui.QTreeWidget):
     
     """
     mimeType = "application/x-data-signal-list"
-
     curve = QtCore.QEasingCurve(QtCore.QEasingCurve.InQuart)
 
     def __init__(self, *args, **kwargs):
@@ -168,6 +167,15 @@ class SignalTreeWidget(QtGui.QTreeWidget):
                     parent.setBackground(1, color)
                     updated[id(parent)] = x
 
+    @staticmethod
+    def getMimeDataSignals(mimedata):
+        if mimedata.hasFormat(SignalTreeWidget.mimeType):
+            data = str(mimedata.data(SignalTreeWidget.mimeType))
+            sources = json.loads(data)
+            return sources
+        else:
+            return None
+
 class SignalListWidget(QtGui.QListWidget):
     """
     SignalListWidget operates in parallel with SignalTreeWidget. Whereas
@@ -177,6 +185,7 @@ class SignalListWidget(QtGui.QListWidget):
     edit which signals are being plotted by dragging and dropping signals
     to and from the SignalListWidget
     """
+    SignalStyleRole = QtCore.Qt.UserRole + 0xCA15 + 1
     def __init__(self, *args, **kwargs):
         QtGui.QListWidget.__init__(self, *args, **kwargs)
         
@@ -187,7 +196,10 @@ class SignalListWidget(QtGui.QListWidget):
 
     def setup(self, signals):
         for descr in signals:
+            #print descr
             item = QtGui.QListWidgetItem(descr["identifier"], self)
+            item.setData(SignalListWidget.SignalStyleRole, (descr["color"],
+                                                            descr["style"]))
 
 ##    def mimeData(self, items):
 ##        for item in items:
@@ -219,10 +231,19 @@ class SignalListWidget(QtGui.QListWidget):
             event.ignore()
 
 class SignalListEditorDialog(QtGui.QDialog):
-
+    """
+    SignalListEditorDialog provides a dialog window to allow for viewing and
+    editing the list of signals being plotted on a graph as well as changing
+    the label, line-style, and color of the signal on plots.
+    """
     signal_removed  = QtCore.Signal([str])
     signal_added    = QtCore.Signal([list])
     signal_modified = QtCore.Signal([dict])
+
+    styles = [("solid", None),
+              ("dashed", None),
+              ("dashdot", None),
+              ("dotted", None)]
     def __init__(self, *args, **kwargs):
         QtGui.QDialog.__init__(self, *args, **kwargs)
 
@@ -236,17 +257,28 @@ class SignalListEditorDialog(QtGui.QDialog):
         
         self.control_frame = QtGui.QFrame(self)
         self.control_frame.setFrameShape(QtGui.QFrame.Box)
-        self.control_layout = QtGui.QVBoxLayout(self.control_frame)
-        self.edit_button = QtGui.QPushButton("&Edit", self)
-        self.remove_button = QtGui.QPushButton("&Remove", self)
-
-        self.control_layout.addWidget(self.edit_button)
-        self.control_layout.addWidget(self.remove_button)
-        self.control_layout.addStretch(1)
-
-##        self.control_layout.setAlignment(self.edit_button, QtCore.Qt.AlignTop)
-##        self.control_layout.setAlignment(self.remove_button, QtCore.Qt.AlignTop)
+        self.control_layout = QtGui.QFormLayout(self.control_frame)
         
+        self.name_field = QtGui.QLineEdit(self.control_frame)
+        self.style_field = QtGui.QComboBox(self.control_frame)
+        self.color_field = CustomColorPicker(self.control_frame)
+
+        for (style, icon) in self.styles:
+            if icon:
+                self.style_field.addItem(icon, style)
+            else:
+                self.style_field.addItem(style)
+
+        self.control_layout.addRow("Name:", self.name_field)
+        self.control_layout.addRow("Style:", self.style_field)
+        self.control_layout.addRow("Color:", self.color_field)
+##        self.edit_button = QtGui.QPushButton("&Edit", self)
+##        self.remove_button = QtGui.QPushButton("&Remove", self)
+##
+##        self.control_layout.addWidget(self.edit_button)
+##        self.control_layout.addWidget(self.remove_button)
+##        self.control_layout.addStretch(1)
+
         self.control_frame.setLayout(self.control_layout)
         
         self.horz_layout.addWidget(self.list_widget)
@@ -257,8 +289,14 @@ class SignalListEditorDialog(QtGui.QDialog):
         self.setLayout(self.vert_layout)
 
         link(self.footer_buttons.rejected, self.close)
-        link(self.edit_button.clicked, self.do_edit)
-        link(self.remove_button.clicked, self.do_remove)
+##        link(self.edit_button.clicked, self.do_edit)
+##        link(self.remove_button.clicked, self.do_remove)
+
+        link(self.list_widget.currentItemChanged, self.update_controls)
+
+    def update_controls(self, new, prev):
+        self.name_field.setText(new.text())
+##        self.style_field.something()
 
     def do_edit(self):
         self.signal_modified.emit({changed: "Test edit"})
@@ -268,3 +306,32 @@ class SignalListEditorDialog(QtGui.QDialog):
 
     def setup(self, signals):
         self.list_widget.setup(signals)
+
+class CustomColorPicker(QtGui.QWidget):
+    def __init__(self, *args, **kwargs):
+        QtGui.QWidget.__init__(self, *args, **kwargs)
+
+        self.layout = QtGui.QHBoxLayout(self)
+        self.patch = QtGui.QImage(QtCore.QSize(64, 32), QtGui.QImage.Format_Indexed8)
+        self.patch.fill(0)
+
+        self.picker_button = QtGui.QToolButton(self)
+        self.picker_button.setIcon(find_icon("palette-icon.png"))
+        self.picker_button.setAutoRaise(True)
+##        wrapper = QtGui.QWidget(self)
+##        wrapper_layout = QtGui.QHBoxLayout(wrapper)
+##        wrapper_layout.addWidget(self.patch
+##        wrapper.setLayout(wrapper_layout)
+##        self.layout.addWidget(self.patch, 1, QtCore.Qt.AlignLeft)
+        self.layout.addWidget(self.picker_button, 0, QtCore.Qt.AlignLeft)
+        self.setLayout(self.layout)
+
+        self.color_dialog = QtGui.QColorDialog(self)        
+
+        link(self.picker_button.pressed, self.show_dialog)
+
+    def recolor_patch(self, color):
+        self.patch.setColor(0, color.getRgb())
+
+    def show_dialog(self):
+        self.color_dialog.open()
