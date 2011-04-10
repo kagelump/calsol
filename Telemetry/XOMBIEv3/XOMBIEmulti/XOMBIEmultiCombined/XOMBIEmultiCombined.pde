@@ -1,9 +1,5 @@
 #include <XBee.h>
-
-typedef struct {
-  uint8_t data[14];
-  uint8_t len;
-} XBeeMsg;
+#include "pack.h"
 
 uint8_t encodeFirstByte(uint32_t a) {
   uint32_t* p_a = &a;
@@ -268,7 +264,7 @@ void Transition() {
   }
 }
 
-void Sending(CanMessage *msg) {
+void Sending() {
   while (xbee.readPacket(1)) {
     //Serial.println("Reading XBee packet");
     XBeeResponse response = xbee.getResponse();
@@ -322,7 +318,9 @@ void Sending(CanMessage *msg) {
     //Serial.println(CanBufferSize());
     XBeeMsg* package[numPerPack];
     for (int i = 0; i < numPerPack; i++) {
-      package[i] = &CanBufferRead();
+      XBeeMsg *m;
+      initXBeeMsg(m, &CanBufferRead());
+      package[i] = m;
     }
     sendXBeeMsgs(&xbee, chaseCarXBEE, package, numPerPack);
     
@@ -448,7 +446,7 @@ void loop() {
       break;
       
     case DEBUGGING:
-      Debugging(time);
+      Debugging(msg, time);
       break;
       
   }
