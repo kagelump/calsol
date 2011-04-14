@@ -5,7 +5,7 @@
 from PySide import QtGui, QtCore
 from Queue import Queue
 
-from raceStrategy import iter_dE, iter_V
+from raceStrategy import iter_dE, iter_V, calc_dE, calc_V
 
 class EnergyModelApplication(QtGui.QApplication):
     """
@@ -102,7 +102,23 @@ class EnergyModelEvaluationThread(QtCore.QThread):
 
         if self.job is None and not self.queue.empty():
             print "Starting new job"
-            self.job = self.queue.get_nowait()
+            self.job = job = self.queue.get_nowait()
+            if job["type"] == "Energy":
+                print calc_V(job["energy"],
+                             job["start_longitude"],
+                             job["start_latitude"],
+                             0,
+                             job["start_time"],
+                             job["end_time"],
+                             job["cloudy"])
+            else:
+                print calc_dE(job["velocity"],
+                              job["start_longitude"],
+                              job["start_latitude"],
+                              0,
+                              job["start_time"],
+                              job["end_time"],
+                              job["cloudy"])
 
         if self.job is None:
             return
@@ -182,13 +198,13 @@ class EnergyModelWindow(QtGui.QMainWindow):
         self.eng_policy_widget.submitted.connect(on_submit)
 
         def show_results(job, result):
-            if job["type"] == "Energy":
+            if job["type"] == "Velocity":
                 print "Results for dE calculation w/params:"
                 for k, v in sorted(job.items()):
                     if k != "type":
                         print "   ", k, "=", v
                 print "Result: dE=%.1fJ" % result
-            elif job["type"] == "Velocity":
+            elif job["type"] == "Energy":
                 print "Results for velocity calculation w/params:"
                 for k, v in sorted(job.items()):
                     if k != "type":
@@ -257,10 +273,10 @@ class VelocityPolicyForm(QtGui.QGroupBox):
     def __init__(self, parent=None):
         QtGui.QGroupBox.__init__(self, "Evaluate Velocity Policy", parent)
 
-        self._setup()
+        self._setup(),
 
-        self.start_latitude.setValue( -12.447305)
-        self.start_longitude.setValue(130.781250)
+        self.start_latitude.setValue(  -12.45668)
+        self.start_longitude.setValue(130.83705)
         self.goal_velocity.setValue(50)
 
         self.button.pressed.connect(lambda: self.handle_submit())

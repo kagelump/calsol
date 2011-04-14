@@ -1,5 +1,5 @@
 import time, math
-from models.energy import powerConsumption, load_data, iter_consumption
+from models.energy import defaultModel, powerConsumption
 
 # function 1: Given velocity, find energy
 # Default start: Now, end: 5 PM (17:00)
@@ -17,14 +17,18 @@ def iter_dE(velocity, longitude, latitude, start_time=time.strftime("%H:%M", tim
     st = time.strptime("Oct 11 " + start_time, "%b %y %H:%M")
     et = time.strptime("Oct 11 " + end_time, "%b %y %H:%M")
 
-    it = iter_consumption(velocity, longitude, latitude, time.mktime(et)-time.mktime(st))
-    
-    consumption = None
-    while consumption is None:
-        consumption = it.next()
+    it = defaultModel.energy_loss_iterator(velocity,
+                                           latitude,
+                                           longitude,
+                                           time.mktime(et)-time.mktime(st))
+    losses = None
+    while losses is None:
+        losses = it.next()
         yield None
-    print "consumption", velocity
-    yield powerGeneration(latitude, velocity, st, et, cloudy) - consumption
+
+    
+    print "losses: %.2fJ" % losses
+    yield powerGeneration(latitude, velocity, st, et, cloudy) - losses
     
 # function 2: Given energy, find velocity
 def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
