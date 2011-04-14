@@ -1,5 +1,5 @@
 import time, math
-from models.energy import powerConsumption, load_data
+from models.energy import powerConsumption, load_data, iter_consumption
 
 # function 1: Given velocity, find energy
 # Default start: Now, end: 5 PM (17:00)
@@ -12,6 +12,19 @@ def calc_dE(velocity, longitude, latitude, altitude, start_time=time.strftime("%
     et = time.strptime("Oct 11 " + end_time, "%b %y %H:%M")
     energy_change = powerGeneration(latitude, velocity, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity, time.mktime(et)-time.mktime(st))
     return energy_change
+
+def iter_dE(velocity, longitude, latitude, start_time=time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
+    st = time.strptime("Oct 11 " + start_time, "%b %y %H:%M")
+    et = time.strptime("Oct 11 " + end_time, "%b %y %H:%M")
+
+    it = iter_consumption(velocity, longitude, latitude, time.mktime(et)-time.mktime(st))
+    
+    consumption = None
+    while consumption is None:
+        consumption = it.next()
+        yield None
+    print "consumption", velocity
+    yield powerGeneration(latitude, velocity, st, et, cloudy) - consumption
     
 # function 2: Given energy, find velocity
 def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
@@ -74,6 +87,8 @@ def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H
     # DOOM
     print "Max iterations exceeded. Try different inputs."
     return ()
+def iter_V(*args):
+    yield -1
 
 # Dummy test functions
 def powerGeneration(latitude, velocity, start_time, end_time, cloudy):

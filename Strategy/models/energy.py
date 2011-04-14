@@ -50,6 +50,38 @@ def powerConsumption(startPos, speed, time):
     #return (dE, route[pti-1])
     return dE
 
+def iter_consumption(latitude, longitude, velocity, dt):
+    """
+    Assuming that we start at the point on the course nearest to the specified
+    latitude and longitude, compute the energy consumed if we maintain the
+    specified average velocity in (TODO: UNITS SHOULD GO HERE)
+
+    Yields the computed dE on the final iteration.
+    """
+
+    if route is None:
+        load_data()
+
+    targetDist = velocity * dt
+
+    pt_index = closestPointIndex(route, (latitude, longitude, 0))
+    dE = 0.0
+
+    startDist = currentDist = route[pt_index][3]
+    firstCoord = route[pt_index]
+    lastCoord = route[pt_index]
+    pt_index += 1
+    while (currentDist - startDist < targetDist) and (pt_index < len(route)):
+        currCoord = route[pt_index]
+        currentDist += currCoord[3]
+        distStep = currCoord[3] - lastCoord[3]
+        dE += energyStep(currCoord, lastCoord, distStep, velocity)
+        lastCoord = currCoord
+        pt_index += 1
+        yield None
+    yield dE
+    
+
 def energyStep(start, end, dist, speed):
     dE = 0
     currentSpeed = speed
@@ -114,7 +146,7 @@ def load_data():
         return
     
     route = [] #format [ pos1, pos2, ... ]
-    input = open("../data/course.csv")
+    input = open("./data/course.csv")
     
     line = input.readline()
     while line:

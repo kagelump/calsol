@@ -3,6 +3,9 @@
 #is in QtGui, and anything involving core Qt functionality like event callbacks,
 #(some enumerations), and date-time objects are in QtCore.
 from PySide import QtGui, QtCore
+from Queue import Queue
+
+from raceStrategy import iter_dE, iter_V
 
 class EnergyModelApplication(QtGui.QApplication):
     """
@@ -63,19 +66,21 @@ class EnergyModelEvaluationThread(QtCore.QThread):
     """
 
     shutdown_event_type = QtCore.QEvent.Type(QtCore.QEvent.registerEventType())
-    job_finished = QtCore.Signal(object)
+    job_finished = QtCore.Signal([object, object])
     def __init__(self, application):
         QtCore.QThread.__init__(self, application)
         self.app = application
 
     def _setup(self):
         self.quitting = False
+        self.cancelled = False
 
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(lambda: self.process())
 
-        self.baked = 0
-        self.goal = 0
+        self.queue = Queue()
+
+        self.job = self.state = None
 
     def run(self):
         self._setup()
@@ -87,21 +92,37 @@ class EnergyModelEvaluationThread(QtCore.QThread):
         if self.quitting:
             self.timer.stop()
             return
-        
-        if self.baked >= self.goal:
+
+        if self.cancelled:
+            if self.job:
+                print "Cancelled job"
+            self.cancelled = False
+            self.state = None
+            self.job = None
+
+        if self.job is None and not self.queue.empty():
+            print "Starting new job"
+            self.job = self.queue.get_nowait()
+
+        if self.job is None:
             return
 
-        print "Baking cookie number %s" % (self.baked + 1)
-        self.baked += 1
+        if self.state is None:
+            self.state = self.setup_initial_state(self.job)
+        
+        result = self.state.next()
+        if result is not None:
+            print "Finished job"
+            self.job_finished.emit(self.job, result)
+            self.job = None
+            self.state = None
 
-        if self.baked == self.goal:
-            self.job_finished.emit(self.baked)
-            self.baked = 0
-            self.goal = 0
+    def on_new_job(self, params):
+        print "Enqueued job"
+        self.queue.put(params)
 
-    def on_new_job(self, job_parameters):
-        print "Got baking request!"
-        self.goal = job_parameters["quantity"]
+    def on_cancel_job(self):
+        self.cancelled = True
 
     def shutdownEvent(self, evt):
         print "Got shutdown signal"
@@ -116,6 +137,24 @@ class EnergyModelEvaluationThread(QtCore.QThread):
         else:
             return QtCore.QThread.event(self, evt)
 
+    def setup_initial_state(self, job):
+        #TODO, need to make sure lat/long aren't swapped anywhere.
+        if job["type"] == "Energy":
+            state =  iter_V(job["energy"],
+                            job["start_longitude"],
+                            job["start_latitude"],
+                            job["start_time"],
+                            job["end_time"],
+                            job["cloudy"])
+        elif job["type"] == "Velocity":
+            state = iter_dE(job["velocity"],
+                            job["start_longitude"],
+                            job["start_latitude"],
+                            job["start_time"],
+                            job["end_time"],
+                            job["cloudy"])
+        return state
+
 class EnergyModelWindow(QtGui.QMainWindow):
     """
     This class will serve as the top-level container for your interface. Every
@@ -128,29 +167,43 @@ class EnergyModelWindow(QtGui.QMainWindow):
     and it also complicates moving large classes into their own modules.
     """
 
-    got_baking_request = QtCore.Signal(object)
     def __init__(self, application, *args, **kwargs):
         QtGui.QMainWindow.__init__(self, *args, **kwargs)
         self.app = application
     
     def setup(self):
-        """
-        Do any interface specific setup here. This includes configuring your
-        widgets, creating the widgets that define the structure of your
-        interface, pre-populating widgets with data from the application,
-        and setting up custom event handlers.
-        """
+        "General setup code that should be called before calling show"
         self.setup_ui()
 
-        def bake_cookies():
-            self.got_baking_request.emit({"quantity": 12})
+        def on_submit(params):
+            self.app.work_thread.on_new_job(params)
+        
+        self.vel_policy_widget.submitted.connect(on_submit)
+        self.eng_policy_widget.submitted.connect(on_submit)
 
-        self.got_baking_request.connect(self.app.work_thread.on_new_job)
-        self.button.pressed.connect(bake_cookies)
+        def show_results(job, result):
+            if job["type"] == "Energy":
+                print "Results for dE calculation w/params:"
+                for k, v in sorted(job.items()):
+                    if k != "type":
+                        print "   ", k, "=", v
+                print "Result: dE=%.1fJ" % result
+            elif job["type"] == "Velocity":
+                print "Results for velocity calculation w/params:"
+                for k, v in sorted(job.items()):
+                    if k != "type":
+                        print "   ", k, "=", v
+                print "Result: average velocity=%.1fm/s" % result
+        
+        self.app.work_thread.job_finished.connect(show_results)
+
+##        def on_cancel():
+##            self.app.work_thread.on_cancel_job()
+##
+##        self.cancel_button.pressed.connect(on_cancel)
 
     def setup_ui(self):
-        #Setup your widgets here. Make sure to add them to a layout object
-        #otherwise they'll appear in random places.
+        "Handles setting up all of the UI elements"
 
         #Set the window title to something informative
         self.setWindowTitle("Energy Model Policy Evaluator")
@@ -158,44 +211,172 @@ class EnergyModelWindow(QtGui.QMainWindow):
         #Create a central widget - just a widget to act as the main root
         #for everything else - this simplifies the layout.
         self.central_widget = QtGui.QWidget(self)
-
-        #Setup the size policy so that the window can expand
-        #QtSizePolicy.Preferred tells Qt that we want the widget (the window,
-        #in this case) to be around this size when possible, but that it's
-        #okay to make it expand or shrink. It appears once for each dimension.
         size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
                                         QtGui.QSizePolicy.Expanding)
+        size_policy.setHeightForWidth(self.central_widget.sizePolicy().hasHeightForWidth())
         size_policy.setHorizontalStretch(1)
         size_policy.setVerticalStretch(1)
         self.central_widget.setSizePolicy(size_policy)
-        self.central_widget.setMinimumSize(QtCore.QSize(300, 200))
-        self.central_widget.setMaximumSize(QtCore.QSize(300, 200))
+        self.central_widget.setMinimumSize(QtCore.QSize(500, 400))
+        self.setMinimumSize(QtCore.QSize(500, 400))
+##        self.central_widget.setMaximumSize(QtCore.QSize(300, 200))
+        
 
         #Create a layout that fits your needs - probably a QFormLayout
-        self.central_layout = QtGui.QVBoxLayout(self.central_widget)
+        self.central_layout = QtGui.QHBoxLayout(self.central_widget)
 
-        self.label = QtGui.QLabel("Strategy: Make more cookies")
-        self.button = QtGui.QPushButton("Make more!")
+        self.vel_policy_widget = VelocityPolicyForm(self.central_widget)        
+        self.central_layout.addWidget(self.vel_policy_widget)
+        
+        self.eng_policy_widget = EnergyPolicyForm(self.central_widget)        
+        self.central_layout.addWidget(self.eng_policy_widget)
 
-        #Adds the label to the layout so that it can figure out where to
-        #place it. If you forget to do this, it will just end up in the
-        #top left corner.
-        self.central_layout.addWidget(self.label)
-        self.central_layout.setAlignment(self.label,
+        self.central_layout.setAlignment(self.vel_policy_widget,
                                          QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-        self.central_layout.addWidget(self.button)
-        self.central_layout.setAlignment(self.button,
+        self.central_layout.setAlignment(self.eng_policy_widget,
                                          QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
 
-        #Also important, tell the main widget to use the central_layout
-        #to arrange its widgets and to implicitly act as a parent for
-        #the widgets in the layout for event-handling purposes
+        size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
+                                        QtGui.QSizePolicy.Expanding)
+        size_policy.setHeightForWidth(self.vel_policy_widget.sizePolicy().hasHeightForWidth())
+        size_policy.setHorizontalStretch(1)
+        size_policy.setVerticalStretch(1)
+        self.vel_policy_widget.setSizePolicy(size_policy)
+
+        size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
+                                        QtGui.QSizePolicy.Expanding)
+        size_policy.setHeightForWidth(self.eng_policy_widget.sizePolicy().hasHeightForWidth())
+        size_policy.setHorizontalStretch(1)
+        size_policy.setVerticalStretch(1)
+        self.eng_policy_widget.setSizePolicy(size_policy)
+        
         self.central_widget.setLayout(self.central_layout)
+
+class VelocityPolicyForm(QtGui.QGroupBox):
+    submitted = QtCore.Signal(object)
+    def __init__(self, parent=None):
+        QtGui.QGroupBox.__init__(self, "Evaluate Velocity Policy", parent)
+
+        self._setup()
+
+        self.start_latitude.setValue( -12.447305)
+        self.start_longitude.setValue(130.781250)
+        self.goal_velocity.setValue(50)
+
+        self.button.pressed.connect(lambda: self.handle_submit())
+
+    def _setup(self):
+        self.layout = QtGui.QFormLayout(self)
+
+        self.goal_velocity = QtGui.QDoubleSpinBox(self)
+        self.goal_velocity.setRange(0.0, 120.0)
+        self.goal_velocity.setDecimals(1)
+        #TODO: find out what the units are supposed to be
+        self.goal_velocity.setSuffix("m/s")
+
+        self.start_latitude = QtGui.QDoubleSpinBox(self)
+        self.start_longitude = QtGui.QDoubleSpinBox(self)
+        self.start_latitude.setRange(-90.0, 90.0)
+        self.start_longitude.setRange(-180.0, 180.0)
+        self.start_latitude.setDecimals(6)
+        self.start_longitude.setDecimals(6)
+
+        self.start_time = QtGui.QTimeEdit(self)
+        self.end_time   = QtGui.QTimeEdit(self)
+        
+        self.cloudiness = QtGui.QDoubleSpinBox(self)
+        self.cloudiness.setDecimals(2)
+        self.cloudiness.setRange(0.0, 1.0)
+        self.cloudiness.setSingleStep(0.01)
+
+        self.button = QtGui.QPushButton("Evaluate", self)
+        
+        self.layout.addRow("Average Velocity", self.goal_velocity)
+        self.layout.addRow("Start Latitude", self.start_latitude)
+        self.layout.addRow("Start Longitude", self.start_longitude)
+        self.layout.addRow("Start Time", self.start_time)
+        self.layout.addRow("End Time", self.end_time)
+        self.layout.addRow("Cloudiness", self.cloudiness)
+        self.layout.addRow(self.button)
+        
+        self.setLayout(self.layout)
+
+    def handle_submit(self):
+        params = {}
+        params["type"] = "Velocity"
+        params["velocity"] = self.goal_velocity.value()
+        params["start_latitude"] = self.start_latitude.value()
+        params["start_longitude"] = self.start_longitude.value()
+        params["start_time"] = self.start_time.time().toString("HH:mm")
+        params["end_time"] = self.end_time.time().toString("HH:mm")
+        params["cloudy"] = self.cloudiness.value()
+
+        self.submitted.emit(params)
+
+class EnergyPolicyForm(QtGui.QGroupBox):
+    submitted = QtCore.Signal(object)
+    def __init__(self, parent=None):
+        QtGui.QGroupBox.__init__(self, "Evaluate Energy Policy", parent)
+
+        self._setup()
+
+        self.start_latitude.setValue( -12.447305)
+        self.start_longitude.setValue(130.781250)
+        self.goal_energy.setValue(50)
+
+        self.button.pressed.connect(lambda: self.handle_submit())
+
+    def _setup(self):
+        self.layout = QtGui.QFormLayout(self)
+
+        self.goal_energy = QtGui.QDoubleSpinBox(self)
+        self.goal_energy.setRange(0.0, 120.0)
+        self.goal_energy.setDecimals(1)
+        #TODO: find out what the units are supposed to be
+        self.goal_energy.setSuffix("J")
+
+        self.start_latitude = QtGui.QDoubleSpinBox(self)
+        self.start_longitude = QtGui.QDoubleSpinBox(self)
+        self.start_latitude.setRange(-90.0, 90.0)
+        self.start_longitude.setRange(-180.0, 180.0)
+        self.start_latitude.setDecimals(6)
+        self.start_longitude.setDecimals(6)
+
+        self.start_time = QtGui.QTimeEdit(self)
+        self.end_time   = QtGui.QTimeEdit(self)
+        
+        self.cloudiness = QtGui.QDoubleSpinBox(self)
+        self.cloudiness.setDecimals(2)
+        self.cloudiness.setRange(0.0, 1.0)
+        self.cloudiness.setSingleStep(0.01)
+
+        self.button = QtGui.QPushButton("Evaluate", self)
+        
+        self.layout.addRow("Goal dEnergy", self.goal_energy)
+        self.layout.addRow("Start Latitude", self.start_latitude)
+        self.layout.addRow("Start Longitude", self.start_longitude)
+        self.layout.addRow("Start Time", self.start_time)
+        self.layout.addRow("End Time", self.end_time)
+        self.layout.addRow("Cloudiness", self.cloudiness)
+        self.layout.addRow(self.button)
+        
+        self.setLayout(self.layout)
+
+    def handle_submit(self):
+        params = {}
+        params["type"] = "Energy"
+        params["energy"] = self.goal_energy.value()
+        params["start_latitude"] = self.start_latitude.value()
+        params["start_longitude"] = self.start_longitude.value()
+        params["start_time"] = self.start_time.time().toString("HH:mm")
+        params["end_time"] = self.end_time.time().toString("HH:mm")
+        params["cloudy"] = self.cloudiness.value()
+
+        self.submitted.emit(params)
 
 if __name__ == "__main__":
     import sys
-    number_of_macadamia_nut_cookies = 5
-
+    
     app = EnergyModelApplication(sys.argv)
     app.setup()
 
