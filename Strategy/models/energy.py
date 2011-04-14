@@ -141,41 +141,64 @@ defaultModel = CarModel(
 
 
 def powerConsumption(startPos, speed, time):
-    # startPos format (lat, lon, alt)
-    if route is None:
-        load_data()
+    """
+    startPos: (lattitude, longitude [, altitude] )
+    speed: meters/second
+    time: seconds
+    """
+    global route
+    if not route:
+        print 'route not loaded!!!'
+        sys.exit(1)
+
+    pti = nextPointIndex(route, startPos)
+    if len(startPos) == 2: 
+        startPos = startPos[0:2] + (route[pti][2],)
+    elif len(startPos) == 3:
+        pass
+    else:
+        print 'startPos format is wrong!'; sys.exit(1)
 
     targetDist = speed * time
 
-    pti = closestPointIndex(route, startPos)
-    dE = 0
-    
     startDist = route[pti][3]
     currentDist = startDist
     
-    firstCoord = startPos[0:2] +\
-        (route[pti][2],) +\
-        (route[pti][3] + distance(startPos, route[pti]),)
-    #print 'firstCoord:', firstCoord    
-    #print 'closestPt:', route[pti]
-    distStep = distance(firstCoord, route[pti])
-    dE += defaultModel.step_energy_loss(firstCoord, route[pti], speed)
+    firstCheckpoint = route[pti]
+    distStep = distance(startPos, firstCheckpoint)
+    if distStep > targetDist:
+        # if the distance to the next point on the route is greater
+        # than the total distance to drive
+        firstCheckpoint = interpolateCoordinates(startPos, firstCheckpoint, targetDist/distStep)
+        dE =  energyStep(startPos[2], firstCheckpoint[2], distance(startPos, firstCheckpoint), speed)
+        #print 'dE1:', dE
+        #print 'startPos:', startPos
+        return dE
+
+    dE = energyStep(startPos[2], firstCheckpoint[2], distStep, speed)
     currentDist += distStep
 
     lastCoord = route[pti]
     pti += 1
-    while (currentDist - startDist < targetDist) and (not (pti == len(route))):
-        currentDist += route[pti][3]
+    while not (pti == len(route)):
+        nextCheckpoint = route[pti]
         
-        distStep = route[pti][3] - lastCoord[3]
-        dE += energyStep(route[pti], lastCoord, distStep, speed)
-        #print 'dE:', dE
+        distStep = nextCheckpoint[3] - lastCoord[3]
+        if currentDist - startDist + distStep > targetDist:
+            frac = distStep/(targetDist-(currentDist-startDist)) #step size/remaining distance to travel
+            nextCheckpoint = interpolateCoordinates(lastCoord, nextCheckpoint, frac)
+            return dE + energyStep(lastCoord[2], nextCheckpoint[2], distance(lastCoord, nextCheckpoint), speed)
+
+        dE += energyStep(lastCoord[2], nextCheckpoint[2], distStep, speed)
         lastCoord = route[pti]
         pti += 1
-    #print 'distance:', currentDist-startDist
-    #return (dE, route[pti-1])
+
     return dE
-    
+
+def interpolateCoordinates(c1, c2, p):
+    c1 = map(lambda x: x*p, c1)
+    c2 = map(lambda x: x*(1-p), c2)
+    return map(lambda x: x[0] + x[1], zip(c1, c2))
 
 def distance(c1, c2):
     import math
@@ -190,7 +213,22 @@ def distance(c1, c2):
     c = 2. * math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
 
+def nextPointIndex(route, coord):
+    """
+    Returns the index of route that is the next checkpoint in the race
+    """
+    closestPti = closestPointIndex(route, coord)
+    closestPt= route[closestPti]
+    nextPt = route[closestPti+1]
+    if distance(coord, nextPt) < distance(closestPt, nextPt):
+        return closestPti+1
+    else:
+        return closestPti
+
 def closestPointIndex(route, coord):
+    """
+    Returns the index of route that coord is closest to
+    """
     closestDist = float('-Inf')
     for i in range(0, len(route)):
         d = distance(route[i], coord)
