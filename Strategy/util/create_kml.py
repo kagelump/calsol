@@ -55,7 +55,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     #input = open('../misc/master_2.csv', 'r')
-    output = open('../course/kml_out.kml', 'w')
+    output = open('../data/kml_out.kml', 'w')
 
     points = []
 

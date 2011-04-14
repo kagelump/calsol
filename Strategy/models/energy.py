@@ -16,10 +16,8 @@ MOTOR_VOLTAGE = 0
 
 def powerConsumption(startPos, speed, time):
     # startPos format (lat, lon, alt)
-    global route
-    if not route:
-        print 'route not loaded!!!'
-        sys.exit(1)
+    if route is None:
+        load_data()
 
     targetDist = speed * time
 
@@ -87,8 +85,8 @@ def energyStep(start, end, dist, speed):
 
 def distance(c1, c2):
     import math
-    lon1, lat1 = map(lambda x: x*2*math.pi/360., c1[0:2])
-    lon2, lat2 = map(lambda x: x*2*math.pi/360., c2[0:2])
+    lon1, lat1 = map(math.radians, c1[0:2])
+    lon2, lat2 = map(math.radians, c2[0:2])
     R = 6371000
     dLat = lat2-lat1
     dLon = lon2-lon1
@@ -111,12 +109,12 @@ def load_data():
     """
     Load Route Data and put it in route as groups of coordinate points
     """
-    """if data_loaded:
-        print 'trying to load the data twice!'
-        sys.exit(1)"""
     global route
+    if route is not None:
+        return
+    
     route = [] #format [ pos1, pos2, ... ]
-    input = open("./misc/course.csv")
+    input = open("../data/course.csv")
     
     line = input.readline()
     while line:
@@ -159,28 +157,3 @@ if __name__ == '__main__':
     dE = powerConsumption(start_pos, speed, time)
     print 'dE:', dE
     print 'done'
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

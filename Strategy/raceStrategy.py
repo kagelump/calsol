@@ -1,5 +1,5 @@
-import time, math, energy_loss_simple
-from energy_loss_simple import powerConsumption
+import time, math
+from models.energy import powerConsumption, load_data
 
 # function 1: Given velocity, find energy
 # Default start: Now, end: 5 PM (17:00)
@@ -95,7 +95,7 @@ if __name__ == '__main__':
     endTime = "0:00"
 
     #initialize route database:
-    energy_loss_simple.load_data()
+    load_data()
     # User input loop
     while True:
     	# Asks user whether to start a new calculation or modify the previous one

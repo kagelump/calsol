@@ -163,7 +163,7 @@ if __name__ == '__main__':
 	altitude_sample_rate = 1 # altitude sample ever tenth of a mile
 	
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--input', default="./misc/CalSol.kml")
+	parser.add_argument('--input', default="../data/CalSol.kml")
 	parser.add_argument('--start', default="0")
 	parser.add_argument('--end', default="-1")
 	args = parser.parse_args(sys.argv[1:])
