@@ -98,6 +98,7 @@ if __name__ == '__main__':
     energy_loss_simple.load_data()
     # User input loop
     while True:
+    	# Asks user whether to start a new calculation or modify the previous one
         operationType = raw_input("Enter 'n' to start a new calculation. Enter 'm' to modify a previous calculation. ")
         if operationType=="n":
             # Starting new calculation
@@ -119,7 +120,7 @@ if __name__ == '__main__':
                 energyState=raw_input("Please enter the energy level (in MJ) of the batteries at the start location: ")
                 cloudiness=raw_input("Please enter a projected %cloudy value [0,1]. If you leave this field blank, historical values will be used. ")
                 if cloudiness=="":
-                    couldiness=-1
+                    cloudiness=-1
                 print str(calc_V(float(inputEnergy),float(longitude),float(lat),float(alt),startTime,endTime,float(cloudiness))) + "km/h"
             # Calculate change in energy given a velocity
             if calcType=="e":
@@ -138,7 +139,7 @@ if __name__ == '__main__':
                 energyState=raw_input("Please enter the energy level (in MJ) of the batteries at the start location: ")
                 cloudiness=raw_input("Please enter a projected %cloudy value [0,1]. If you leave this field blank, historical values will be used. ")
                 if cloudiness=="":
-                    couldiness=-1
+                    cloudiness=-1
                 print str(calc_dE(float(inputVelocity),float(longitude),float(lat), float(alt), startTime,endTime,float(cloudiness))) + "MJ"
         
         elif operationType == "m" and type!=0:
