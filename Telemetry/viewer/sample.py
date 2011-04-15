@@ -228,6 +228,8 @@ class XOMBIEDecoder:
             return (x,)
         elif x == 0xC2:
             return (x, list(struct.unpack("<90B", msg[1:])))
+        elif x == 0xE2:
+            return (x, [msg[1:]])
         else:
             raise ValueError("Unknown command message with id=%#x" % x)
     
@@ -372,10 +374,10 @@ class XOMBIEStream:
             self.state = XOMBIEStream.UNASSOCIATED
 
     def process(self, frame):
-        #print frame
+        print frame
         #print "\a"
         if frame["id"] == "rx_long_addr":
-            alpha = 0.7
+            alpha = 0.9
             rssi = -ord(frame["rssi"])
             if self.rssi_average is None:
                 self.rssi_average = rssi

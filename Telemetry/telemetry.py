@@ -98,16 +98,20 @@ class XOMBIEThread(QtCore.QThread):
 
         self.timer = self.commit_timer = None
         self.should_query = False
+        self.should_test = False
+        self.should_reassociate = False
         
         link(self.started, self.setup)
 
     def setup(self):
         self.got_heartbeat = False
         self.checking_heartbeat = False
+
+        self.checking_assoc = False
         self.heartbeat_timer = QtCore.QTimer()
         self.heartbeat_timer.setSingleShot(True)
 
-        link(self.heartbeat_timer.timeout, self.check_heartbeat)
+        link(self.heartbeat_timer.timeout, self.check_timeout)
         
         self.timer = QtCore.QTimer()
         self.commit_timer = QtCore.QTimer()
@@ -117,6 +121,7 @@ class XOMBIEThread(QtCore.QThread):
 
         self.stream.add_callback(0x85, self.mark_heartbeat)
         self.stream.add_callback(0xC2, self.print_histogram)
+        self.stream.add_callback(0xE2, self.print_test)
         self.stream.start()
 
         self.commit_timer.start(5000)
@@ -136,11 +141,21 @@ class XOMBIEThread(QtCore.QThread):
             self.should_query = False
             self.stream.logger.info("Requesting CAN BUS Status Query")
             self.stream.send_no_ack("\xc1")
+        elif self.should_test:
+            self.should_test = False
+            self.stream.logger.info("Requesting Signal Strength Test")
+            self.stream.send_no_ack("\xe1")
+        elif self.should_reassociate:
+            self.should_reassociate = False
+            self.stream.logger.info("Resetting to UNASSOCIATED mode")
+            self.stream.state = XOMBIEStream.UNASSOCIATED
         
         five_seconds = datetime.timedelta(seconds=5)
         if self.stream.state is XOMBIEStream.UNASSOCIATED:
             self.stream.send_handshake1()
             self.timer.setInterval(500)
+            self.checking_assoc = True
+            self.heartbeat_timer.start(5000)
             
         if self.stream.state is XOMBIEStream.ASSOCIATED:
             self.timer.setInterval(50)
@@ -164,13 +179,19 @@ class XOMBIEThread(QtCore.QThread):
                 for source in self.stream.data_table.values():
                     source.pull()
 
-    def check_heartbeat(self):
-        if not self.got_heartbeat:
-            self.stream.logger.error("Didn't hear a heartbeat response - disassociating.")
-            self.stream.state = XOMBIEStream.UNASSOCIATED
+    def check_timeout(self):
+        if self.checking_heartbeat:
+            if not self.got_heartbeat:
+                self.stream.logger.error("Didn't hear a heartbeat response - disassociating.")
+                self.stream.state = XOMBIEStream.UNASSOCIATED
 
-        self.got_heartbeat = False
-        self.checking_heartbeat = False
+            self.got_heartbeat = False
+            self.checking_heartbeat = False
+        if self.checking_assoc:
+            if self.stream.state != XOMBIEStream.ASSOCIATED:
+                self.stream.logger.error("Failed to associate within five seconds - resetting.")
+                self.stream.state = XOMBIEStream.UNASSOCIATED
+            self.checking_assoc = False
 
     def mark_heartbeat(self):
         if self.checking_heartbeat:
@@ -186,6 +207,9 @@ class XOMBIEThread(QtCore.QThread):
                                         i*interval,
                                         interval*(i+1),
                                         count)
+
+    def print_test(self, msg):
+        self.stream.logger.info("Got test message: %s" % msg)
 
     def insert_data(self, cursor, id_, name, t, data):
         cmd = "INSERT INTO data(id, name, time, data) VALUES (?,?,?,?)"
@@ -475,6 +499,32 @@ class TelemetryViewerWindow(QtGui.QMainWindow):
                 app.xombie_thread.should_query = True
         
         link(self.sendQueryAction.triggered, trigger_xombie_query)
+
+        self.sendTestIcon = find_icon("network-wireless.png")
+        self.sendTestAction = QtGui.QAction(self.sendTestIcon, "", self)
+
+        self.sendTestButton = QtGui.QToolButton()
+        self.sendTestButton.setDefaultAction(self.sendTestAction)
+        self.toolBar.addWidget(self.sendTestButton)
+
+        def trigger_xombie_test():
+            if self.app.xombie_thread.isRunning():
+                app.xombie_thread.should_test = True
+        
+        link(self.sendTestAction.triggered, trigger_xombie_test)
+
+        self.reassociateIcon = find_icon("go-jump.png")
+        self.reassociateAction = QtGui.QAction(self.reassociateIcon, "", self)
+
+        self.reassociateButton = QtGui.QToolButton()
+        self.reassociateButton.setDefaultAction(self.reassociateAction)
+        self.toolBar.addWidget(self.reassociateButton)
+
+        def trigger_reassociate():
+            if self.app.xombie_thread.isRunning():
+                app.xombie_thread.should_reassociate = True
+        
+        link(self.reassociateAction.triggered, trigger_reassociate)
         
         self.addToolBar(QtCore.Qt.TopToolBarArea, self.toolBar)
         #self.insertToolBarBreak(self.toolBar)

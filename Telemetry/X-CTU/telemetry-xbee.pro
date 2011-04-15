@@ -28,7 +28,7 @@ FE
 [A]SP=0
 [A]DP=3E8
 [A]SO=0
-[A]BD=6
+[A]BD=7
 [A]NB=0
 [A]RO=3
 [A]AP=2

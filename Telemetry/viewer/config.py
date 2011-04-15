@@ -106,7 +106,7 @@ class PortDescriptor(Descriptor):
         "xonxoff": bool,
         "rtscts": bool}
     defaults = {
-        "baudrate": 57600
+        "baudrate": 115200
     }
     optional = ["xonxoff", "rtscts"]
     
