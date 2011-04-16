@@ -1,0 +1,41 @@
+{
+	  "0x481" : {
+    "name" : "Dashboard Inputs",
+    "format" : "BBBBB",
+    "messages" : [
+      ["Right Turn Light Status", "boolean", "Status of the right turn light"],
+      ["Left Turn Light Status", "boolean", "Status of the left turn light"],
+      ["Horn Status", "boolean", "Whether or not the horn is on"],
+      ["Brake Light Status", "boolean", "Status of the brake light"],
+      ["Reverse", "boolean", "Whether or not the car is in reverse"]
+    ],
+    "source" : "Input board",
+	"destination": "Output board",
+    "period" : 25
+  },
+	"0x43":{
+	  "name" : "Dashboard Heartbeat",
+    "format" : "B7x",
+    "messages" : [
+      ["Flags", "Cutoff_bits", "Flags indicating the status of the dashboard module"]
+    ],
+    "source" : "Output board",
+    "period" : 200,
+    "heartbeat" : "dashboard"
+  },
+  "0x44":{
+	  "name" : "Signals Heartbeat",
+    "format" : "B7x",
+    "messages" : [
+      ["Flags", "Signals_bits", "Flags indicating the status of the Signals module"]
+    ],
+    "source" : "Signals board",
+    "period" : 200,
+    "heartbeat" : "signals"
+  },
+"0x555": {
+      "name": "Dummy 555 Signal",
+      "format": "B6"
+	}
+  
+	}
