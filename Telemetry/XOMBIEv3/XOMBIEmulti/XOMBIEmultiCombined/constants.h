@@ -6,6 +6,10 @@
 #define RESET_PIN 17
 #define OE_PIN 18
 
+#define ASSOC_LED 0
+#define DEBUG_LED1 19
+#define DEBUG_LED2 20
+
 #define LISTENING 0
 #define TRANSITION 1
 #define SENDING 2
@@ -23,7 +27,7 @@ int heartShake5 = 0x85;
 
 int heartBeat = 100;
 
-int numPerPack = 4;
+int numPerPack = 1;
 
 int debuggingMode = 0xC1;
 unsigned long debuggingTime = 10000;
