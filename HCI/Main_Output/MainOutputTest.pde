@@ -5,10 +5,14 @@
 #define OUT_HORN        18
 #define OUT_BRAKE       19
 #define OUT_REVERSE     20
+#define OUT_HEARTBEAT   22
 
 // Can IDs
-#define buttonsID       0x481
-#define HEARTBEAT_ID 0x43
+#define BUTTONS_ID        0x481
+#define HEARTBEAT_ID     0x43
+
+// Debug
+#define DEBUG
 
 //0:RTurn 1:LTurn 2:Strobe 3:Horn 4:brake 5:reverse
 enum SignalIds {
@@ -24,8 +28,8 @@ enum SignalIds {
 char signal_states[6];
 long lastSignalMillis = 0;
 
-void setup(){
-  initPins();
+void setup() {
+  init_pins();
   Can.begin(1000);     // Turn CAN on at 500 kbits/Sec
   Serial.begin(115200); // Turn on Serial communication
   CanBufferInit();    // Initialize the buffer, turn on interrupts.
@@ -35,8 +39,8 @@ void loop(){
   // Receive Messages
   if (CanBufferSize()) {
     CanMessage msg = CanBufferRead();
-    if (msg.id == buttonsID) {
-      updateInputs(msg.data);
+    if (msg.id == BUTTONS_ID) {
+      update_state(msg.data);
       #ifdef DEBUG
         Serial.println("We got message from main input board ");
         Serial.print(msg.data[0] & 0xFF, HEX);
@@ -48,6 +52,7 @@ void loop(){
         Serial.println(msg.data[6] & 0xFF, HEX);
         Serial.println(msg.data[7] & 0xFF, HEX);
       #endif
+    }
   }
   // 3.937 hz function
   if (millis() - lastSignalMillis >= 254) {
@@ -55,26 +60,27 @@ void loop(){
     heartbeat();
     // Toggle signal lights, if they're set to on
     if (signal_states[SIGNAL_RIGHT_TURN])
-      digitalWrite(OUT_RIGHT_TURN, !digitalRead(OUT_RIGHT_TURN))
+      digitalWrite(OUT_RIGHT_TURN, !digitalRead(OUT_RIGHT_TURN));
     else if (signal_states[SIGNAL_LEFT_TURN])
-      digitalWrite(OUT_LEFT_TURN, !digitalRead(OUT_LEFT_TURN))
+      digitalWrite(OUT_LEFT_TURN, !digitalRead(OUT_LEFT_TURN));
     lastSignalMillis = millis();
   }
 }
 
-void init_pins(){
-  pinMode(RTURN,    OUTPUT);
-  pinMode(LTURN,    OUTPUT);
-  pinMode(STROBE,   OUTPUT);
-  pinMode(HORN,     OUTPUT);
-  pinMode(BRAKE,    OUTPUT);
-  pinMode(REVERSE,  OUTPUT);
+void init_pins() {
+  pinMode(OUT_RIGHT_TURN, OUTPUT);
+  pinMode(OUT_LEFT_TURN,  OUTPUT);
+  pinMode(OUT_STROBE,     OUTPUT);
+  pinMode(OUT_HORN,       OUTPUT);
+  pinMode(OUT_BRAKE,      OUTPUT);
+  pinMode(OUT_REVERSE,    OUTPUT);
+  pinMode(OUT_HEARTBEAT,  OUTPUT);
 }
 
 // Gets called whenever we receive a CAN message, to change the internal state
 void update_state(char * data) {
   for (int i = 0; i < 6; i++) {
-    if (data[i] != signal_state[i]) {
+    if (data[i] != signal_states[i]) {
       update_state(data[i], i);
     }
   }
@@ -88,23 +94,26 @@ void update_state(char new_state, int index) {
         digitalWrite(OUT_RIGHT_TURN, LOW);
       else
         lastSignalMillis = millis() + 255;  // This will activate toggling
+      signal_states[SIGNAL_LEFT_TURN] = 0;  // Turning off opposite signal regardless
       break;
     case SIGNAL_LEFT_TURN:                  // Left Turn Signal
       if (!new_state)                       // If we're turning the light off
         digitalWrite(OUT_LEFT_TURN, LOW);
       else
         lastSignalMillis = millis() + 255;  // This will activate toggling
+      signal_states[SIGNAL_RIGHT_TURN] = 0;  // Turning off opposite signal regardless
       break;
     case SIGNAL_STROBE:                     // Strobe Signal (TODO: MAKE BLINK)
-      digitalWrite(new_state, OUT_STROBE);
+      digitalWrite(OUT_STROBE, new_state);
       break;
     case SIGNAL_BRAKE:                      // Brake Light
-      digitalWrite(new_state, OUT_BRAKE);
+      digitalWrite(OUT_BRAKE, new_state);
       break;
     case SIGNAL_REVERSE:                    // Reverse Light (DNE YET)
-      digitalWrite(new_state, OUT_REVERSE);
+      digitalWrite(OUT_REVERSE, new_state);
       break;
     default:
+      break;
   }
   signal_states[index] = new_state;
 }
@@ -116,4 +125,5 @@ void heartbeat() {
   msg.data[0] = 0;
   msg.len = 1;
   Can.send(msg);
+  digitalWrite(OUT_HEARTBEAT, !digitalRead(OUT_HEARTBEAT));
 }
