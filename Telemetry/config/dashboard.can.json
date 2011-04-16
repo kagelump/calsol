@@ -15,7 +15,7 @@
   },
 	"0x43":{
 	  "name" : "Dashboard Heartbeat",
-    "format" : "B7x",
+    "format" : "B",
     "messages" : [
       ["Flags", "Cutoff_bits", "Flags indicating the status of the dashboard module"]
     ],
@@ -25,7 +25,7 @@
   },
   "0x44":{
 	  "name" : "Signals Heartbeat",
-    "format" : "B7x",
+    "format" : "B",
     "messages" : [
       ["Flags", "Signals_bits", "Flags indicating the status of the Signals module"]
     ],
