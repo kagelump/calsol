@@ -1,5 +1,5 @@
 import time, math
-from models.energy import defaultModel, powerConsumption,load_data
+from models.energy import defaultModel, load_data #,powerConsumption
 
 # function 1: Given velocity, find energy
 # Default start: Now, end: 5 PM (17:00)
@@ -46,53 +46,62 @@ def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H
     while current_iteration < iteration_limit:
         energy_change = powerGeneration(latitude, velocity_guess, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess, time.mktime(et) - time.mktime(st))
         if math.fabs(energy_change - energy) < error:
-            return velocity_guess
+            yield velocity_guess
+            print 'answer=',velocity_guess
+            break
         else: 
             # Update velocity guess value
             print 'powerGeneration: ', powerGeneration(latitude, velocity_guess+dv, st, et, cloudy)
-            print 'powerConsumption: ', polwerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st))
+            print 'powerConsumption: ', powerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st))
             E_prime = (powerGeneration(latitude, velocity_guess+dv, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st)) - energy_change) / dv
             #print 'eprime: ', (powerGeneration(latitude, velocity_guess+dv, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st)))
             velocity_guess = velocity_guess - (energy_change - energy) / E_prime
             current_iteration+=1
-    
-    # Sometime's Newton's method diverges, so we use a more reliable naive nethod if Newton's fails to converge after the set amount of iterations.
-    # Reset velocity_guess
-    velocity_guess = 50.0
-    # Reset current_iteration
-    current_iteration = 0
-    # Change limit
-    iteration_limit = 1000
-    # Start with some increment amount
-    increment_amount = 25.0
-    # Hold onto our previous guesses just in case...
-    prev_guess = 0
-    # We assume that energy generated - energy consumed generally decreases when velocity increases. So when the calculated energy change - the desired change in energy at the guess velocity is positive, we increase the guess velocity to get closer to the correct velocity. On the other hand, if the calculated energy change - the desired change in energy at the guess velocity is negative, we decrease the guess velocity to get closer to the correct velocity. Everytime we change the direction in which we increment the guess velocity, we know we have overshot the correct velocity, so we half the increment amount to zero in on the correct velocity.
-    while current_iteration < iteration_limit:
-        energy_change = powerGeneration(latitude, velocity_guess, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess, time.mktime(et)-time.mktime(st))
-        if math.fabs(energy_change-energy) < error:
-            if velocity_guess < 0:
-                print "Input energy too high -> velocity ended up negative."
-                return ()
-            return velocity_guess
-        elif energy_change-energy > 0:
-            #check to see if we overshot:
-            if velocity_guess+increment_amount == prev_guess:
-                increment_amount = increment_amount/2
-            prev_guess = velocity_guess
-            velocity_guess += increment_amount
-            
-        else:
-            #check to see if we overshot:
-            if velocity_guess-increment_amount == prev_guess:
-                increment_amount = increment_amount/2
-            prev_guess = velocity_guess
-            velocity_guess -= increment_amount
-        current_iteration += 1
-        
-    # DOOM
-    print "Max iterations exceeded. Try different inputs."
-    return ()
+            yield None
+            print 'none'
+
+    if not(math.fabs(energy_change - energy) < error):
+        # Sometime's Newton's method diverges, so we use a more reliable naive nethod if Newton's fails to converge after the set amount of iterations.
+        # Reset velocity_guess
+        velocity_guess = 50.0
+        # Reset current_iteration
+        current_iteration = 0
+        # Change limit
+        iteration_limit = 1000
+        # Start with some increment amount
+        increment_amount = 25.0
+        # Hold onto our previous guesses just in case...
+        prev_guess = 0
+        # We assume that energy generated - energy consumed generally decreases when velocity increases. So when the calculated energy change - the desired change in energy at the guess velocity is positive, we increase the guess velocity to get closer to the correct velocity. On the other hand, if the calculated energy change - the desired change in energy at the guess velocity is negative, we decrease the guess velocity to get closer to the correct velocity. Everytime we change the direction in which we increment the guess velocity, we know we have overshot the correct velocity, so we half the increment amount to zero in on the correct velocity.
+        while current_iteration < iteration_limit:
+            energy_change = powerGeneration(latitude, velocity_guess, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess, time.mktime(et)-time.mktime(st))
+            if math.fabs(energy_change-energy) < error:
+                if velocity_guess < 0:
+                    print "Input energy too high -> velocity ended up negative."
+                    yield None
+                    print 'none'
+                yield velocity_guess
+                print 'answer=',velocity_guess
+                break
+            elif energy_change-energy > 0:
+                #check to see if we overshot:
+                if velocity_guess+increment_amount == prev_guess:
+                    increment_amount = increment_amount/2
+                prev_guess = velocity_guess
+                velocity_guess += increment_amount
+            else:
+                #check to see if we overshot:
+                if velocity_guess-increment_amount == prev_guess:
+                    increment_amount = increment_amount/2
+                prev_guess = velocity_guess
+                velocity_guess -= increment_amount
+            current_iteration += 1
+            yield None
+            print 'none'
+    if not(math.fabs(energy_change - energy) < error):
+        # DOOM
+        print "Max iterations exceeded. Try different inputs."
+        yield -1
 def iter_V(*args):
     yield -1
 
@@ -101,9 +110,9 @@ def powerGeneration(latitude, velocity, start_time, end_time, cloudy):
     energy_change = (1-cloudy)*(time.mktime(end_time)-time.mktime(start_time))
     return energy_change
 
-#def powerConsumption(longitude, latitude, velocity, time):
- #   energy_eaten = 0.3*time*velocity
-  #  return energy_eaten
+def powerConsumption((latitude, longitude, altitude), velocity, time):
+    energy_eaten = 0.3*time*velocity
+    return energy_eaten
 
 
 # Main Caller and Loop Function
