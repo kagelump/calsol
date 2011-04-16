@@ -27,7 +27,7 @@ int heartShake5 = 0x85;
 
 int heartBeat = 100;
 
-int numPerPack = 1;
+int numPerPack = 4;
 
 int debuggingMode = 0xC1;
 unsigned long debuggingTime = 10000;

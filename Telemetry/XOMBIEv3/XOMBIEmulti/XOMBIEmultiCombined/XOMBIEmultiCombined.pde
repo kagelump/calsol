@@ -2,6 +2,9 @@
 #include "constants.h"
 #include "pack.h"
 
+#define DISABLE_INTERRUPTS() PCICR &=~ 0x02
+#define ENABLE_INTERRUPTS()  PCICR |= 0x02
+
 uint8_t sendXBeeMsgs(XBee *x, XBeeAddress64 chaseCarXBEEaddr, XBeeMsg m[], uint32_t num) {
   uint32_t totalLenOfMessage = 0;
   for (int index = 0; index < num; index++)
@@ -74,7 +77,7 @@ void setup() {
     xbee.begin(115200);
     Serial.begin(115200);
     //Serial.println("Starting serial");
-    //Can.begin(1000);
+    Can.begin(1000);
     CanBufferInit();
     Serial.println("Starting up");
     Serial.print("RX_64_RESPONSE = ");
@@ -116,6 +119,7 @@ void emitHeartbeat() {
   uint8_t hs5[] = {heartShake5};
   Tx64Request tx = Tx64Request(chaseCarXBEE, hs5, sizeof(hs5));
   xbee.send(tx);
+  Serial.println("Replying to heartbeat");
   //Serial.println("Heartbeat check FROM car completed");
 }
   
@@ -205,7 +209,9 @@ void Sending(uint8_t* data) {
       initXBeeMsg(package + i, &can_msg);
 
     }
+    DISABLE_INTERRUPTS();
     sendXBeeMsgs(&xbee, chaseCarXBEE, package, numPerPack);
+    ENABLE_INTERRUPTS();
     Serial.println("Packet sent");
     
     //Serial.println("CAN message sent");
