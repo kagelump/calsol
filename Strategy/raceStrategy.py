@@ -1,9 +1,9 @@
 import time, math
-from models.energy import defaultModel, powerConsumption
+from models.energy import defaultModel, powerConsumption,load_data
 
 # function 1: Given velocity, find energy
 # Default start: Now, end: 5 PM (17:00)
-
+# energy change=energy generated-energy consumed
 def calc_dE(velocity, longitude, latitude, altitude, start_time=time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
     if velocity < 0:
         print "Invalid argument to velocity. Velocity must be positive!"
@@ -42,7 +42,7 @@ def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H
     dv = 0.01
     st = time.strptime("Oct 11 " + start_time, "%b %y %H:%M")
     et = time.strptime("Oct 11 " + end_time, "%b %y %H:%M")
-    # use Newton's method to estimate root:
+    # We try to find a velocity such that the energy generated - the energy consumed = the specified energy change. In order to do this, we start with a guess for the correct velocity and use Newton's method to get closer and closer to the correct velocity. Newton's method is a method to approximate the root of a function f(x) by starting with a guess of the root and repeatedly updating the guess by finding the tangent to f(x) at the guess and then finding the intersection of that tangent and the x axis. This x-value of this intersection point is the new guess.:
     while current_iteration < iteration_limit:
         energy_change = powerGeneration(latitude, velocity_guess, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess, time.mktime(et) - time.mktime(st))
         if math.fabs(energy_change - energy) < error:
@@ -50,13 +50,13 @@ def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H
         else: 
             # Update velocity guess value
             print 'powerGeneration: ', powerGeneration(latitude, velocity_guess+dv, st, et, cloudy)
-            print 'powerConsumption: ', powerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st))
+            print 'powerConsumption: ', polwerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st))
             E_prime = (powerGeneration(latitude, velocity_guess+dv, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st)) - energy_change) / dv
             #print 'eprime: ', (powerGeneration(latitude, velocity_guess+dv, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st)))
             velocity_guess = velocity_guess - (energy_change - energy) / E_prime
             current_iteration+=1
     
-    # If it gets here, it's probably diverging, so we try another way
+    # Sometime's Newton's method diverges, so we use a more reliable naive nethod if Newton's fails to converge after the set amount of iterations.
     # Reset velocity_guess
     velocity_guess = 50.0
     # Reset current_iteration
@@ -67,7 +67,7 @@ def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H
     increment_amount = 25.0
     # Hold onto our previous guesses just in case...
     prev_guess = 0
-    # This better converge
+    # We assume that energy generated - energy consumed generally decreases when velocity increases. So when the calculated energy change - the desired change in energy at the guess velocity is positive, we increase the guess velocity to get closer to the correct velocity. On the other hand, if the calculated energy change - the desired change in energy at the guess velocity is negative, we decrease the guess velocity to get closer to the correct velocity. Everytime we change the direction in which we increment the guess velocity, we know we have overshot the correct velocity, so we half the increment amount to zero in on the correct velocity.
     while current_iteration < iteration_limit:
         energy_change = powerGeneration(latitude, velocity_guess, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess, time.mktime(et)-time.mktime(st))
         if math.fabs(energy_change-energy) < error:
@@ -76,12 +76,14 @@ def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H
                 return ()
             return velocity_guess
         elif energy_change-energy > 0:
+            #check to see if we overshot:
             if velocity_guess+increment_amount == prev_guess:
                 increment_amount = increment_amount/2
             prev_guess = velocity_guess
             velocity_guess += increment_amount
             
         else:
+            #check to see if we overshot:
             if velocity_guess-increment_amount == prev_guess:
                 increment_amount = increment_amount/2
             prev_guess = velocity_guess
