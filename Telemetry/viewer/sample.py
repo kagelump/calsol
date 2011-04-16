@@ -374,7 +374,7 @@ class XOMBIEStream:
             self.state = XOMBIEStream.UNASSOCIATED
 
     def process(self, frame):
-        print frame
+        #print frame
         #print "\a"
         if frame["id"] == "rx_long_addr":
             alpha = 0.9

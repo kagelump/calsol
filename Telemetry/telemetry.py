@@ -151,8 +151,9 @@ class XOMBIEThread(QtCore.QThread):
             self.stream.state = XOMBIEStream.UNASSOCIATED
         
         five_seconds = datetime.timedelta(seconds=5)
-        if self.stream.state is XOMBIEStream.UNASSOCIATED:
+        if self.stream.state is XOMBIEStream.UNASSOCIATED and not self.checking_assoc:
             self.stream.send_handshake1()
+            print "Attempting to associate"
             self.timer.setInterval(500)
             self.checking_assoc = True
             self.heartbeat_timer.start(5000)
