@@ -1,7 +1,7 @@
 import time, math
 from models.energy import defaultModel, load_data, powerConsumption,\
                           GPSCoordinate
-
+from models.Predictor import powerGeneration
 # function 1: Given velocity, find energy
 # Default start: Now, end: 5 PM (17:00)
 # energy change=energy generated-energy consumed
@@ -129,9 +129,9 @@ def iter_V(energy, latitude, longitude, altitude, start_time = time.strftime("%H
         yield (True, -1)
 
 # Dummy test functions
-def powerGeneration(latitude, velocity, start_time, end_time, cloudy):
-    energy_change = (1-cloudy)*(time.mktime(end_time)-time.mktime(start_time))
-    return energy_change
+##def powerGeneration(latitude, velocity, start_time, end_time, cloudy):
+##    energy_change = (1-cloudy)*(time.mktime(end_time)-time.mktime(start_time))
+##    return energy_change
 
 ##def powerConsumption((latitude, longitude, altitude), velocity, time):
 ##    energy_eaten = 0.3*time*velocity
