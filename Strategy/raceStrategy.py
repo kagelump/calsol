@@ -1,19 +1,19 @@
 import time, math
-from models.energy import defaultModel, load_data #,powerConsumption
+from models.energy import defaultModel, load_data, powerConsumption,\
+                          GPSCoordinate
 
 # function 1: Given velocity, find energy
 # Default start: Now, end: 5 PM (17:00)
 # energy change=energy generated-energy consumed
-def calc_dE(velocity, longitude, latitude, altitude, start_time=time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
-    if velocity < 0:
-        print "Invalid argument to velocity. Velocity must be positive!"
-        return ()
-    st = time.strptime("Oct 11 " + start_time, "%b %y %H:%M")
-    et = time.strptime("Oct 11 " + end_time, "%b %y %H:%M")
-    energy_change = powerGeneration(latitude, velocity, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity, time.mktime(et)-time.mktime(st))
-    return energy_change
+def calc_dE(velocity, latitude, longitude, altitude, start_time=time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
+    it = iter_dE(velocity, latitude, longitude,
+                 start_time, end_time, cloudy)
+    for (done, dE) in it:
+        if done:
+            return dE
+ 
 
-def iter_dE(velocity, longitude, latitude, start_time=time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
+def iter_dE(velocity, latitude, longitude, start_time=time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
     st = time.strptime("Oct 11 " + start_time, "%b %y %H:%M")
     et = time.strptime("Oct 11 " + end_time, "%b %y %H:%M")
 
@@ -21,17 +21,21 @@ def iter_dE(velocity, longitude, latitude, start_time=time.strftime("%H:%M", tim
                                            latitude,
                                            longitude,
                                            time.mktime(et)-time.mktime(st))
-    losses = None
-    while losses is None:
-        losses = it.next()
-        yield None
+    for (done, losses) in it:
+        yield (False, -losses)
+        if done:
+            break
+    yield (True, powerGeneration(latitude, velocity, st, et, cloudy) - losses)
 
-    
-    print "losses: %.2fJ" % losses
-    yield powerGeneration(latitude, velocity, st, et, cloudy) - losses
-    
+def calc_V(energy, latitude, longitude, altitude, start_time = time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
+    it = iter_V(energy, latitude, longitude, altitude,
+                start_time, end_time, cloudy)
+    for (done, velocity) in it:
+        if done:
+            return velocity
+ 
 # function 2: Given energy, find velocity
-def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
+def iter_V(energy, latitude, longitude, altitude, start_time = time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
     # Start with an arbitrary average velocity... say...50 km/h
     velocity_guess = 50.0
     # error_bound
@@ -42,23 +46,36 @@ def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H
     dv = 0.01
     st = time.strptime("Oct 11 " + start_time, "%b %y %H:%M")
     et = time.strptime("Oct 11 " + end_time, "%b %y %H:%M")
-    # We try to find a velocity such that the energy generated - the energy consumed = the specified energy change. In order to do this, we start with a guess for the correct velocity and use Newton's method to get closer and closer to the correct velocity. Newton's method is a method to approximate the root of a function f(x) by starting with a guess of the root and repeatedly updating the guess by finding the tangent to f(x) at the guess and then finding the intersection of that tangent and the x axis. This x-value of this intersection point is the new guess.:
+    dt = time.mktime(et) - time.mktime(st)
+    start = GPSCoordinate(latitude, longitude, altitude)
+    # We try to find a velocity such that the energy generated - the energy
+    # consumed = the specified energy change. In order to do this, we start
+    # with a guess for the correct velocity and use Newton's method to get
+    # closer and closer to the correct velocity. Newton's method is a method
+    # to approximate the root of a function f(x) by starting with a guess of
+    # the root and repeatedly updating the guess by finding the tangent to f(x)
+    # at the guess and then finding the intersection of that tangent and the x
+    # axis. This x-value of this intersection point is the new guess.
     while current_iteration < iteration_limit:
-        energy_change = powerGeneration(latitude, velocity_guess, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess, time.mktime(et) - time.mktime(st))
+        energy_gen = powerGeneration(latitude, velocity_guess, st, et, cloudy)
+        energy_loss = powerConsumption(start, velocity_guess, dt)
+        energy_change = energy_gen - energy_loss
         if math.fabs(energy_change - energy) < error:
-            yield velocity_guess
+            yield (True, velocity_guess)
             print 'answer=',velocity_guess
             break
         else: 
             # Update velocity guess value
-            print 'powerGeneration: ', powerGeneration(latitude, velocity_guess+dv, st, et, cloudy)
-            print 'powerConsumption: ', powerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st))
-            E_prime = (powerGeneration(latitude, velocity_guess+dv, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st)) - energy_change) / dv
-            #print 'eprime: ', (powerGeneration(latitude, velocity_guess+dv, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess+dv, time.mktime(et)-time.mktime(st)))
+            energy_gen = powerGeneration(latitude, velocity_guess+dv, st, et, cloudy)
+            energy_loss = powerConsumption(start, velocity_guess+dv, dt)
+            print 'powerGeneration: ', energy_gen
+            print 'powerConsumption: ', energy_loss
+            
+            E_prime = ((energy_gen - energy_loss) - energy_change) / dv
+            #print 'eprime: ', E_prime
             velocity_guess = velocity_guess - (energy_change - energy) / E_prime
-            current_iteration+=1
-            yield None
-            print 'none'
+            current_iteration += 1
+            yield (False, velocity_guess)
 
     if not(math.fabs(energy_change - energy) < error):
         # Sometime's Newton's method diverges, so we use a more reliable naive nethod if Newton's fails to converge after the set amount of iterations.
@@ -72,15 +89,24 @@ def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H
         increment_amount = 25.0
         # Hold onto our previous guesses just in case...
         prev_guess = 0
-        # We assume that energy generated - energy consumed generally decreases when velocity increases. So when the calculated energy change - the desired change in energy at the guess velocity is positive, we increase the guess velocity to get closer to the correct velocity. On the other hand, if the calculated energy change - the desired change in energy at the guess velocity is negative, we decrease the guess velocity to get closer to the correct velocity. Everytime we change the direction in which we increment the guess velocity, we know we have overshot the correct velocity, so we half the increment amount to zero in on the correct velocity.
+        # We assume that energy generated - energy consumed generally decreases
+        # when velocity increases. So when the calculated energy change - the
+        # desired change in energy at the guess velocity is positive, we increase
+        # the guess velocity to get closer to the correct velocity. On the other
+        # hand, if the calculated energy change - the desired change in energy at
+        # the guess velocity is negative, we decrease the guess velocity to get
+        # closer to the correct velocity. Everytime we change the direction in
+        # which we increment the guess velocity, we know we have overshot the
+        # correct velocity, so we half the increment amount to zero in on the
+        # correct velocity.
         while current_iteration < iteration_limit:
-            energy_change = powerGeneration(latitude, velocity_guess, st, et, cloudy) - powerConsumption((latitude, longitude, altitude), velocity_guess, time.mktime(et)-time.mktime(st))
+            energy_gen = powerGeneration(latitude, velocity_guess, st, et, cloudy)
+            energy_loss = powerConsumption(start, velocity_guess, dt)
+            energy_change = energy_gen - energy_loss
             if math.fabs(energy_change-energy) < error:
                 if velocity_guess < 0:
                     print "Input energy too high -> velocity ended up negative."
-                    yield None
-                    print 'none'
-                yield velocity_guess
+                yield (True, velocity_guess)
                 print 'answer=',velocity_guess
                 break
             elif energy_change-energy > 0:
@@ -96,23 +122,20 @@ def calc_V(energy, longitude, latitude, altitude, start_time = time.strftime("%H
                 prev_guess = velocity_guess
                 velocity_guess -= increment_amount
             current_iteration += 1
-            yield None
-            print 'none'
+            yield (False, velocity_guess)
     if not(math.fabs(energy_change - energy) < error):
         # DOOM
         print "Max iterations exceeded. Try different inputs."
-        yield -1
-def iter_V(*args):
-    yield -1
+        yield (True, -1)
 
 # Dummy test functions
 def powerGeneration(latitude, velocity, start_time, end_time, cloudy):
     energy_change = (1-cloudy)*(time.mktime(end_time)-time.mktime(start_time))
     return energy_change
 
-def powerConsumption((latitude, longitude, altitude), velocity, time):
-    energy_eaten = 0.3*time*velocity
-    return energy_eaten
+##def powerConsumption((latitude, longitude, altitude), velocity, time):
+##    energy_eaten = 0.3*time*velocity
+##    return energy_eaten
 
 
 # Main Caller and Loop Function

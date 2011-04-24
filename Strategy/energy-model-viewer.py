@@ -4,6 +4,7 @@
 #(some enumerations), and date-time objects are in QtCore.
 from PySide import QtGui, QtCore
 from Queue import Queue
+import traceback
 
 from raceStrategy import iter_dE, iter_V, calc_dE, calc_V
 
@@ -12,14 +13,15 @@ class EnergyModelApplication(QtGui.QApplication):
     Implements an interface on top of our energy model for determining
     a speed policy to reach a certain change in energy over a time interval
     and determining the change in energy for a given speed policy.
+
+    Policy evaluations are done in a separate thread to keep the main interface
+    responsive.
     """
 
     def setup(self):
         """
         Setup the worker thread and main window.
         """
-
-        #Do some setup here
 
         self.work_thread = EnergyModelEvaluationThread(self)
         
@@ -72,9 +74,16 @@ class EnergyModelEvaluationThread(QtCore.QThread):
         self.app = application
 
     def _setup(self):
+        """
+        Does internal thread-specific setup. Any Qt objects should be created
+        here so that they're parented to this thread, since _setup is called
+        from this thread instead of the application thread.
+        """
+        
         self.quitting = False
         self.cancelled = False
 
+        #Timer for scheduling when we do the next iteration of the current job
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(lambda: self.process())
 
@@ -83,12 +92,23 @@ class EnergyModelEvaluationThread(QtCore.QThread):
         self.job = self.state = None
 
     def run(self):
+        """
+        Internal setup method called immediately before the event loop begins
+        processing. Note that this will be called from this thread, rather than
+        the application thread.
+        """
         self._setup()
         self.timer.start(100)
         print "Starting worker thread"
         return self.exec_()
 
     def process(self):
+        """
+        Handle a single iteration of enqueuing, cancelling, dequeuing,
+        and/or calculating a job computation.
+        """
+
+        #Check if we should terminate our timer so the thread can cleanly exit
         if self.quitting:
             self.timer.stop()
             return
@@ -100,52 +120,80 @@ class EnergyModelEvaluationThread(QtCore.QThread):
             self.state = None
             self.job = None
 
+        #If there are enqueued jobs and we aren't working on one right now,
+        #we should get one from the queue and work on it.
         if self.job is None and not self.queue.empty():
             print "Starting new job"
-            self.job = job = self.queue.get_nowait()
-            if job["type"] == "Energy":
-                print calc_V(job["energy"],
-                             job["start_longitude"],
-                             job["start_latitude"],
-                             0,
-                             job["start_time"],
-                             job["end_time"],
-                             job["cloudy"])
-            else:
-                print calc_dE(job["velocity"],
-                              job["start_longitude"],
-                              job["start_latitude"],
-                              0,
-                              job["start_time"],
-                              job["end_time"],
-                              job["cloudy"])
+            self.job = self.queue.get_nowait()
 
         if self.job is None:
             return
 
+        #Setup the generator that will do the actual computations for our
+        #current job, if we haven't already done so.
         if self.state is None:
-            self.state = self.setup_initial_state(self.job)
-        
-        result = self.state.next()
-        if result is not None:
+            self.state = self.setup_job_state(self.job)
+
+        cleanup = False
+        done = False
+
+        #Do a single iteration and possibly emit the result if we're done
+        try:
+            done, result = self.state.next()
+        except StopIteration:
+            print "Job failed to complete properly"
+            cleanup = True
+        except BaseException as exc:
+            print "Error in executing job:"
+            traceback.print_exc()
+            cleanup = True
+
+        if done:
+            #Emit the job finished signal so that our consumer can make
+            #use of the result.
             print "Finished job"
             self.job_finished.emit(self.job, result)
+            cleanup = True
+
+        if cleanup:
             self.job = None
             self.state = None
 
     def on_new_job(self, params):
+        """
+        Slot for job request signals.
+        Just puts the job into the queue. process() will pull new jobs from
+        the queue as soon as it finishes/cancels a job.
+        """
         print "Enqueued job"
         self.queue.put(params)
 
     def on_cancel_job(self):
+        """
+        Slot for job cancellation signals.
+        Just mark the current job as cancelled. In process(), we'll check if
+        the job is cancelled and clean it up accordingly.
+        """
         self.cancelled = True
 
     def shutdownEvent(self, evt):
+        """
+        Handler for shutdown events. Mark the thread for shutdown by
+        setting quitting = True so that we can terminate the timer from
+        this thread in our next call to process(), then block on terminating
+        this thread.
+        """
+        
         print "Got shutdown signal"
         self.quitting = True
         self.quit()
 
     def event(self, evt):
+        """
+        Handle Qt events sent to this thread. We only care about shutdown
+        events in particular, so we only process those and pass the rest
+        to the super method.
+        """
         if evt.type() == self.shutdown_event_type:
             evt.accept()
             self.shutdownEvent(evt)
@@ -153,19 +201,24 @@ class EnergyModelEvaluationThread(QtCore.QThread):
         else:
             return QtCore.QThread.event(self, evt)
 
-    def setup_initial_state(self, job):
+    def setup_job_state(self, job):
+        """
+        Handle setting up the correct job computation generator for the
+        input job parameters.
+        """
         #TODO, need to make sure lat/long aren't swapped anywhere.
         if job["type"] == "Energy":
             state =  iter_V(job["energy"],
-                            job["start_longitude"],
                             job["start_latitude"],
+                            job["start_longitude"],
+                            0, #Altitude, but it gets ignored anyways
                             job["start_time"],
                             job["end_time"],
                             job["cloudy"])
         elif job["type"] == "Velocity":
             state = iter_dE(job["velocity"],
-                            job["start_longitude"],
                             job["start_latitude"],
+                            job["start_longitude"],
                             job["start_time"],
                             job["end_time"],
                             job["cloudy"])
@@ -173,14 +226,8 @@ class EnergyModelEvaluationThread(QtCore.QThread):
 
 class EnergyModelWindow(QtGui.QMainWindow):
     """
-    This class will serve as the top-level container for your interface. Every
-    widget that you create will in some way be contained within an instance of
-    this class.
-
-    I suggest keeping a reference to the main application so that you can
-    access the application's instance variables instead of using globals,
-    because it's harder to keep track of where global variables are initialized,
-    and it also complicates moving large classes into their own modules.
+    EnergyModelWindow is the main window that is displayed to the user
+    of the energy model viewer. It handles all of the main UI logic.
     """
 
     def __init__(self, application, *args, **kwargs):
@@ -227,6 +274,8 @@ class EnergyModelWindow(QtGui.QMainWindow):
         #Create a central widget - just a widget to act as the main root
         #for everything else - this simplifies the layout.
         self.central_widget = QtGui.QWidget(self)
+
+        #Setup the size policies so that it doesn't get super-squished.
         size_policy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
                                         QtGui.QSizePolicy.Expanding)
         size_policy.setHeightForWidth(self.central_widget.sizePolicy().hasHeightForWidth())
@@ -235,10 +284,9 @@ class EnergyModelWindow(QtGui.QMainWindow):
         self.central_widget.setSizePolicy(size_policy)
         self.central_widget.setMinimumSize(QtCore.QSize(500, 400))
         self.setMinimumSize(QtCore.QSize(500, 400))
-##        self.central_widget.setMaximumSize(QtCore.QSize(300, 200))
         
 
-        #Create a layout that fits your needs - probably a QFormLayout
+        #Setup the layout for the two side-by-side policy forms.
         self.central_layout = QtGui.QHBoxLayout(self.central_widget)
 
         self.vel_policy_widget = VelocityPolicyForm(self.central_widget)        
@@ -269,6 +317,11 @@ class EnergyModelWindow(QtGui.QMainWindow):
         self.central_widget.setLayout(self.central_layout)
 
 class VelocityPolicyForm(QtGui.QGroupBox):
+    """
+    Form that handles setting the parameters for evaluating a fixed velocity
+    policy. That is, it handles the input boxes for finding the energy spent
+    if the car travels at a constant velocity for some time.
+    """
     submitted = QtCore.Signal(object)
     def __init__(self, parent=None):
         QtGui.QGroupBox.__init__(self, "Evaluate Velocity Policy", parent)
@@ -330,6 +383,12 @@ class VelocityPolicyForm(QtGui.QGroupBox):
         self.submitted.emit(params)
 
 class EnergyPolicyForm(QtGui.QGroupBox):
+    """
+    Form that handles setting the parameters for evaluating a fixed velocity
+    policy. That is, it handles the input boxes for finding the energy spent
+    if the car travels at a constant velocity for some time.
+    """
+    
     submitted = QtCore.Signal(object)
     def __init__(self, parent=None):
         QtGui.QGroupBox.__init__(self, "Evaluate Energy Policy", parent)
@@ -392,7 +451,8 @@ class EnergyPolicyForm(QtGui.QGroupBox):
 
 if __name__ == "__main__":
     import sys
-    
+
+    #Create the application and run it
     app = EnergyModelApplication(sys.argv)
     app.setup()
 
