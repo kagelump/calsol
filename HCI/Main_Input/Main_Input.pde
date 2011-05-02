@@ -41,8 +41,8 @@ boolean debug = false;
 #define ACCEL_PEDAL 27
 #define BRAKE_PEDAL 28
 
-#define ACCEL_THRESHOLD 5
-#define BRAKE_THRESHOLD 5
+#define ACCEL_THRESHOLD 10
+#define BRAKE_THRESHOLD 10
 //User-Defined Constants
 #define INTERVAL 500           // interval at which to blink (milliseconds)
 #define MAX_SPEED 100
@@ -53,7 +53,9 @@ boolean debug = false;
 #define heartbeatID 0x044
 byte digit[] = {0x00,0x00};
 //byte digitarr[10] = {B01111110,B00110000,B01101101,B01111001,B00110011,B01011011,B01011111,B01110010,B01111111,B01110011};
-byte digitarr[10] = {0x7E,0x30,0x6d,0x79,0x33,0x5b,0x5f,0x72,0x7f,0x73};
+//byte digitarr[10] = {0x7E,0x30,0x6d,0x79,0x33,0x5b,0x5f,0x72,0x7f,0x73};
+byte digitarr[10] = {0x7E,0x30,0x6d,0x79,0x33,0x5b,0x5f,0xf0,0xff,0xfb};
+
 char inputMessage[8] = {0,0,0,0,0,0,0,0}; //this will transfer out inputs over
 //0:RTurn 1:LTurn 2:Strobe(might NOT be used NOW) 3:Horn 4:brake 5:reverse 6:
 char motorMessage[8] = {0,0,0,0,0,0,0,0};
@@ -130,8 +132,8 @@ void loop() {
   else{
     displayNum(recordedSpeed*2.2369); // 1 m/s = 2.2369 mph
   }
-  //cruiseControl();  
-    testButtons();
+  cruiseControl();  
+   // testButtons();
 }
 
 /*******************************
@@ -141,109 +143,55 @@ array to display a number between
 00 and 99
 ********************************/
 void displayNum (int x) { 
- boolean hundred = x >=100;  
+ boolean hundred = x >=100;	
   x = x % 100;
-  if (x < 0)
-  x = 0;
-  digit[0] = digitarr[x / 10];
-  digit[1] = digitarr[x % 10];
-       
-//for(int j = 0;j<7;j++){
-//  digitalWrite(LATCH_PIN, LOW);
-//   
-//  for(int i = 0; i<7; i++){
-//    digitalWrite(DATA_PIN, LOW);
-//    
-//    if(i==j){
-//     if(i==2)
-//        digitalWrite(DIGIT1_LED, !isBitSet(digit[0],j));
-//       else
-//      digitalWrite(DATA_PIN, isBitSet(digit[0],j));
-//    }
-//       if (!(i== 2)){
-//      delayMicroseconds(10);
-//          digitalWrite(CLOCK_PIN, LOW);
-//          delayMicroseconds(10);
-//          digitalWrite(CLOCK_PIN, HIGH);
-//    }
-//  }
-//    for(int i = 0; i<7; i++){
-//    digitalWrite(DATA_PIN, LOW);
-//    
-//    if(i==j){
-//      if(i==2)
-//        digitalWrite(DIGIT2_LED, !isBitSet(digit[1],j));
-//       else
-//      digitalWrite(DATA_PIN, isBitSet(digit[1],j));
-//    }
-//    if (!(i== 2)){
-//      delayMicroseconds(10);
-//          digitalWrite(CLOCK_PIN, LOW);
-//          delayMicroseconds(10);
-//          digitalWrite(CLOCK_PIN, HIGH);
-//    }
-//  }
-//
-//  digitalWrite(LATCH_PIN, HIGH);
-//}
-//Note this version is used if the refresh rate for the display is not high enough
-digitalWrite(OUTPUT_PIN,HIGH);  
-  digitalWrite(LATCH_PIN, LOW);
-         digitalWrite(CLOCK_PIN, LOW);
-    if (isBitSet( digit[0], 2))
-    digitalWrite (DIGIT1_LED, LOW);      
-    else 
-    digitalWrite (DIGIT1_LED, HIGH);
-    if (isBitSet( digit[1], 2))
-    digitalWrite (DIGIT2_LED, LOW);      
-    else
-      digitalWrite (DIGIT2_LED, HIGH);
-          
-for(int j = 0; j < 2; j++){
-for (int i = 0; i < 7 ; i++) {
-      if (i != 2){
-                                if(hundred){
-        digitalWrite(DATA_PIN,  isBitSet(0b01100000, i));
-        //  Serial.println (isBitSet(digit[j], i));
-        
-        }  
-                                else{
-                                digitalWrite(DATA_PIN,  isBitSet(0b00000000, i));
-                                }
-      
-                                digitalWrite(CLOCK_PIN, HIGH );
-                                digitalWrite(CLOCK_PIN, LOW);
-                            
-      }
-    }}
-  for (int j = 0;j < 2;j++){
-    for (int i = 0; i < 7 ; i++) {
-      if (i != 2){
-        digitalWrite(DATA_PIN,  isBitSet(digit[j], i));
-        //  Serial.println (isBitSet(digit[j], i));
-        
-        
-      
-                                digitalWrite(CLOCK_PIN, HIGH );
-                                digitalWrite(CLOCK_PIN, LOW);
-                            
-      }
-    }
+	if (x < 0)
+		x = -x;
+	digit[0] = digitarr[x / 10];
+	digit[1] = digitarr[x % 10];
+      digitalWrite(CLOCK_PIN, LOW);
 
-}
-  
-  //take the latch pin high so the LEDs will light up:
-  digitalWrite(LATCH_PIN, HIGH);
+   digitalWrite(LATCH_PIN,LOW);
+   digitalWrite(OUTPUT_PIN,HIGH);
+   
+        for(int i = 0; i < 2; i++){
+       //0ABCDEFG
+       //int index[10] = 0x7e,
+                    digitalWrite(DATA_PIN,hundred); 
+                   
+                   digitalWrite(CLOCK_PIN, HIGH );
+                      delayMicroseconds(2);
+                                digitalWrite(CLOCK_PIN, LOW);
+              
+     }
+for(int j = 0; j < 2; j++)
+     for(int i = 0; i < 7; i++){
+       //0ABCDEFG
+     
+                    digitalWrite(DATA_PIN,isBitSet(digit[j], i%7));
+                   
+                   digitalWrite(CLOCK_PIN, HIGH );
+                      delayMicroseconds(2);
+                                digitalWrite(CLOCK_PIN, LOW);
+              
+     }
+     digitalWrite(LATCH_PIN,HIGH);
+       delayMicroseconds(2);
+     digitalWrite(LATCH_PIN,LOW);
+     digitalWrite(OUTPUT_PIN,LOW);
 }
 /********************************************
 accel()
 This function will read in the current input
 note analog pin can only be read every 100 microseconds
 ********************************************/
+int brakeSamples = 1;
+int accelSamples = 1;
+
 void accel(){
   int accel = analogRead(ACCEL_PEDAL);
- // Serial.print("accel pedal value is");
- // Serial.println(accel);
+//  Serial.print("accel pedal value is");
+//  Serial.println(accel);
   int brake = analogRead(BRAKE_PEDAL);
 //  Serial.print("brake pedal value is");
 //  Serial.println(brake);
@@ -256,7 +204,7 @@ void accel(){
     return;
   }
   if(cruise_active){
-  if(brake > BRAKE_THRESHOLD) {
+	if(brake > BRAKE_THRESHOLD) {
         //  cruiseCancel(2);  // CRUISE CANCEL
         }
         else{
@@ -299,7 +247,7 @@ return;
 
 /*********************************************
 cruiseMode()
-This procedure reads the value of the cruise switch and sets the mode and speed accordingly.
+This procedure reads the value of the cruise sswitch and sets the mode and speed accordingly.
 **********************************************/
 
 boolean firstSet = true;
@@ -309,8 +257,8 @@ void cruiseSetMode() {
    *   maintainable by the car, or the brake is being pressed, cancel cruise.
    */
   if (cruise_active && (recordedSpeed < minimum_cruise_speed || brakeOn)) { // where rval represents the speed of the car
-  Serial.print("brake: ");
-  Serial.println(brakeOn ? "true" : "false");
+  //Serial.print("brake: ");
+  //Serial.println(brakeOn ? "true" : "false");
     cruiseCancel(5);
   }
 
@@ -625,21 +573,21 @@ CanMessage sendMotorControl(){
       outputMsg.len = 8;
       floatEncoder(outputMsg,setspeed,voltage);
       Serial.print("speed =");
-      Serial.println(setspeed);
+     Serial.println(setspeed);
       Serial.print("voltage =");
       Serial.println(voltage);
       return outputMsg;
 }
 void floatEncoder(CanMessage &msg,float spd, float v){
 
-    msg.data[0] = *((char *)&v);
-  msg.data[1] = *(((char *)&v)+1);
-  msg.data[2] = *(((char *)&v)+2);
-  msg.data[3] = *(((char *)&v)+3);
-  msg.data[4] = *((char *)&spd);
-  msg.data[5] = *(((char *)&spd)+1);
-  msg.data[6] = *(((char *)&spd)+2);
-  msg.data[7] = *(((char *)&spd)+3);
+    msg.data[0] = *((char *)&spd);
+  msg.data[1] = *(((char *)&spd)+1);
+  msg.data[2] = *(((char *)&spd)+2);
+  msg.data[3] = *(((char *)&spd)+3);
+  msg.data[4] = *((char *)&v);
+  msg.data[5] = *(((char *)&v)+1);
+  msg.data[6] = *(((char *)&v)+2);
+  msg.data[7] = *(((char *)&v)+3);
 }
 void receiveCAN() {
     if (CanBufferSize()) {               // If there is more than 1 packet in the CAN Buffer
