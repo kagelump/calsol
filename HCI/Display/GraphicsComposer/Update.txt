@@ -1,0 +1,81 @@
+GraphicsComposer software updates
+
+V2.1.3.0
+- Recombined 4DGL ans Serial operation into one version
+- Increased maximum Sector Offset for uSD Raw load format from 2GB to allow for 32GB cards
+
+V2.1.2.0
+- Windows 7 CPU type fix
+- Reloading "Movie" fix. Application would sometimes freeze when you clicked on and off a movie in the
+  Actions window several times.
+- Registry "null" value fix when the software is first setup (possibly only on Windows 7)
+
+V2.1.1.0
+- Divided application into 2 parts, Graphics Composer 4DGL and Graphics Composer Serial.
+
+V2.1.0.3
+- Fixed problem where if the size of the display was changed (Resolution on Properties Page) to
+  a smaller value and then an image was selected that was larger than this value, GC would have an
+  exception.
+- KNOWN ISSUE - some (possibly inbuilt) SD card readers may not work when writing the data to the card.
+  Try another external (USB) card reader.
+
+V2.1.0.2
+- Fixed text description problem for images and movies in "Serial Command Platform" to reflect the
+  adjusted image/movie size according the "Size Mode" instead of the selected size. The now means
+  the "Data" section in each image/movie now reflects the actual command data detailed at the
+  bottom of the file.
+- Some card partitioning would not allow correct writing of data to uSD cards. This fix requires
+  that the application "Run As Administrator" on Vista. This is handled with the inserted manifest
+  if you run the actual application. If you create a shortcut you need to adjust the properties and
+  tick "Run As Administrator" (right click shortcut -> Properties -> Shortcut -> Advanced)
+
+V2.1.0.1
+- Fixed problem on Vista where "FAT" formatted cards could not be used for "Raw" format loading.
+- In "RAW" format the images were being loaded at a higher sector location than reported in the GC file.
+- Mapping space ' ' and minus '-' to underscore '_' in filenames in the GC file.
+- Known issue: Loading an animated GIF into an "Image" will cause the application to crash.
+
+V2.1.0.0
+- Major changes to "Load Device" options
+- Larger/better tasl bar icons
+- Vista writing issues resolve
+- Multiple image/movie add/insert
+
+V2.0.3.0
+- Changed the way device loading options are configured. Now has "Load Options" dialog.
+- Changed the text file output to include the 4DGL commands for the actual images/movies.
+
+V2.0.2.1 21/09/2008
+- No real changes. tried some things but reverted all to get out a release.
+
+V2.0.2.0 27/08/2008
+- Added "GCI File' saving which formats the card with a 512MB FAT16 partition followed by a blind area
+  used to store the actual image data.
+- Added Vista support for SD card writing.
+
+V2.0.1.1 21/03/2008
+- fixed population of "Load Com Port / Drive" drop down box.
+
+V2.0.1 21/01/2008
+- added "Load Options" under device memnu. Moved "Com Port / Drive" into this menu.
+- added "Write command Block" option to "Load Options". If this is is set to "Yes" it will load the commands
+  that were generated into the device starting at address 0 as well as the image data. If this is "No" then
+  the commands are not loaded, just the the image data is loaded.
+- added "Image Format" option to "Load Options". If "Pixel Data Only (V1)" is selected then just the pixel data
+  is loaded into the device. If "Image & Pixel Data (V2)" is selectedthen some additional image information
+  is written before the pixel data for images and videos.
+
+V2.0.0.7 7/01/2008
+- added location/coomand information for movies in the text file output.
+
+V2.0.0.6 22/11/2007 (Trial version)
+- allows loading of large movie files (uses temp file to store intermediate data instead of memory)
+
+V2.0.0.5 19/11/2007
+- fixed odd width images (not loaded correctly, would look like 'italics')
+- uSD cards loaded directly through a reader now load correctly (data being loaded was offset on the card)
+
+V2.0.0.4 23/09/2007
+- in filename.txt (text output file) each image/movie display has the op-codes added to the info in the file.
+- added "Recent Files" list to the "File" menu.
