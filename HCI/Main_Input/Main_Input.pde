@@ -36,8 +36,6 @@ boolean debug = false;
 #define CRUISE_ACC 26 // Rocker switch pushed to increase speed.
 #define CRUISE_IND 15 // The light in the cruise switch to indicate state.
 
-
-
 #define ACCEL_PEDAL 27
 #define BRAKE_PEDAL 28
 
@@ -88,9 +86,8 @@ void initPins(void);
 void floatEncoder(CanMessage &msg,float spd, float v);
 
 void setup() {
-  delay(2000);
   Can.begin(1000);
-  Serial.begin(115200);           // set up Serial library at 9600 bps
+  Serial.begin(115200);
   initPins();
   digitalWrite(DIGIT1_LED, HIGH);
   digitalWrite(DIGIT2_LED, HIGH);
