@@ -50,19 +50,16 @@ boolean boardFail = false;
 boolean batteryHB = false;
 //boolean motorHB = false;
 //boolean mpptHB = false;
-boolean telemetryHB = false;
-boolean ioHB = false;
-boolean controlsHB = false;
-boolean dataloggerHB = false;
+//boolean telemetryHB = false;
+//boolean ioHB = false;
+//boolean controlsHB = false;
+//boolean dataloggerHB = false;
 
 //reads voltage from first voltage source (millivolts)
 long readV1() {
   long reading = analogRead(V1);
   long voltage = reading * 5 * 1000 / 1023 ;  
   voltage = voltage * (270+11) / 11; // 2.7M+110K / 110K
-  Serial.print("V1: ");
-  Serial.print(voltage, DEC);
-  Serial.print("mV\n");
   return voltage ;
 }
 
@@ -71,24 +68,16 @@ long readV2() {
   long reading = analogRead(V2);
   long voltage = reading * 5 * 1000 / 1023 ;  
   voltage = voltage * (270+11) / 11; // 2.7M / 110K
-  //Serial.print("V2: ");
-  //Serial.print(voltage, DEC);
-  //Serial.print("mV\n");
   return voltage; 
 }
 
 //reads current from first hall effect sensor (milliAmps)
 long readC1() {
   long cRead = analogRead(C1);
-  Serial.println(cRead);
   long gndRead = analogRead(CGND);
-  Serial.println(gndRead);
   long c1 = cRead * 5 * 1000 / 1023;
   long cGND = gndRead * 5 * 1000 / 1023;
   long current = 40 * (c1 - cGND);
-  Serial.print("C1: ");
-  Serial.print(current, DEC);
-  Serial.print("mA\n");
   return current;
 }
 
@@ -99,9 +88,6 @@ long readC2() {
   long c1 = cRead * 5 * 1000 / 1023;
   long cGND = gndRead * 5 * 1000 / 1023;
   long current = 40 * (c1 - cGND);
-  //Serial.print("C2: ");
-  //Serial.print(current, DEC);
-  //Serial.print("mA\n");
   return current;
 }
 
@@ -112,26 +98,26 @@ void checkReadings() {
   int batteryC = readC1();
   int otherC = readC2();
   delay(1000);
-  int undervoltage = -100;  //90,000 mV
+  int undervoltage = 90000;  //90,000 mV
   int overvoltage = 140000; //140,000 mV
   int overcurrent1 = 60000; //60,000 mA
   int overcurrent2 = 15000; //15,000 mA
   if (batteryV <= undervoltage) {
-    //state = 3;
+    state = 3;
     msg.id = 0x022;
     msg.len = 1;
     msg.data[0] = 0x02;
     Can.send(msg);
   }
   else if (batteryV >= overvoltage || motorV >= overvoltage) {
-    //state = 3;
+    state = 3;
     msg.id = 0x022;
     msg.len = 1;
     msg.data[0] = 0x01;
     Can.send(msg);
   }
   else if (batteryC >= overcurrent1 || otherC >= overcurrent2) {
-    //state = 3;
+    state = 3;
     msg.id = 0x022;
     msg.len = 1;
     msg.data[0] = 0x04;
@@ -175,7 +161,7 @@ void recieveCAN() {
     //Emergencies
     case 0x021: //battery emergency
       //Serial.print("BPS Emergency Message");
-      //state = 3;
+      state = 3;
       msg = CanMessage();
       msg.id = 0x022;
       msg.len = 1;
@@ -192,7 +178,7 @@ void recieveCAN() {
       break;
     case 0x025: //telemetry emergency
       //Serial.print("Telemetry emergency message");
-    case 0x026: //other emergency
+    case 0x026: case 0x027: case 0x028: //other emergency
       //Serial.print("Other emergency message");
       digitalWrite(BUZZER, HIGH);
       digitalWrite(LEDFAIL, HIGH);
@@ -202,22 +188,24 @@ void recieveCAN() {
     //Heartbeats
     case 0x041: //bps heartbeat
       batteryHB = true;
+      //warning flag
       if (msg.data[0] == 0x01) {
-        //Serial.print("Driver Controls Board Error\n");
+        //Serial.print("BPS Warning\n");
         digitalWrite(BUZZER, HIGH);
         digitalWrite(LEDFAIL, HIGH);
         warningTime = millis() + shortWarning;
       }
-      //critical error flag
+      //error flag
       if (msg.data[0] == 0x02) {
-        //Serial.print("Driver Controls Critical Board Error\n");
+        //Serial.print("BPS Board Error\n");
         digitalWrite(BUZZER, HIGH);
         digitalWrite(LEDFAIL, HIGH);
         warningTime = millis() + longWarning;
       }
+      //critical error flag
       if (msg.data[0] == 0x04) {
         //Serial.print("BPS Critical Board Error\n");
-        //state = 3;
+        state = 3;
         msg = CanMessage();
         msg.id = 0x022;
         msg.len = 1;
@@ -319,9 +307,9 @@ void setup() {
   pinMode(LED2, OUTPUT);
   pinMode(IO_T1, INPUT); //OFF SWITCH
   digitalWrite(IO_T1, HIGH);
-  pinMode(IO_T2, INPUT);
+  pinMode(IO_T2, INPUT); //Song 1
   digitalWrite(IO_T2, HIGH);
-  pinMode(IO_T3, INPUT);
+  pinMode(IO_T3, INPUT); //Song 
   digitalWrite(IO_T3, HIGH);
   pinMode(IO_T4, OUTPUT);
   pinMode(IO_B1, OUTPUT);
@@ -338,127 +326,10 @@ void setup() {
   Serial.begin(9600);
 }
 
-/*
-//yaaaaayyyy
-void loop() {
-  playMusic(1);
-  playMusic(2);
-}
-*/
-
-/*
-//test relays
-void loop() {
-  digitalWrite(RELAY3, HIGH);
-  delay(500);
-  digitalWrite(RELAY2, HIGH);
-  delay(500);
-  digitalWrite(RELAY3, HIGH);
-  delay(500);
-  digitalWrite(LVRELAY, HIGH);
-  delay(1000);
-  digitalWrite(RELAY3, LOW);
-  digitalWrite(RELAY2, LOW);
-  digitalWrite(RELAY3, LOW);
-  digitalWrite(LVRELAY, LOW);
-  delay(1000);
-}
-*/
-
-/*
-//test LED
-void loop() {
-  digitalWrite(LED1, HIGH);
-  delay(1000);
-  digitalWrite(LED2, HIGH);
-  delay(1000);
-  digitalWrite(LEDFAIL, HIGH);
-  delay(1000);
-  digitalWrite(LED1, LOW);
-  digitalWrite(LED2, LOW);
-  digitalWrite(LEDFAIL, LOW);
-  delay(1000);
-}
-*/
-
-/*
-//test IO
-void loop() {
-  digitalWrite(IO_T1, HIGH);
-  delay(1000);
-  digitalWrite(IO_T2, HIGH);
-  delay(1000);
-  digitalWrite(IO_T3, HIGH);
-  delay(1000);
-  digitalWrite(IO_T4, HIGH);
-  delay(1000);
-  digitalWrite(IO_B1, HIGH);
-  delay(1000);
-  digitalWrite(IO_B2, HIGH);
-  delay(1000);
-  digitalWrite(IO_B3, HIGH);
-  delay(1000);
-  digitalWrite(IO_B4, HIGH);
-  delay(1000);
-  digitalWrite(IO_T1, LOW);
-  digitalWrite(IO_T2, LOW);
-  digitalWrite(IO_T3, LOW);
-  digitalWrite(IO_T4, LOW);
-  digitalWrite(IO_B1 LOW);
-  digitalWrite(IO_B2, LOW);
-  digitalWrite(IO_B3, LOW);
-  digitalWrite(IO_B4, LOW);
-  delay(1000);
-}
-*/
-
-/*
-//test CAN
-void loop() {
-  //recieve CAN messages
-  temp looptime = 500;
-  temp time = millis() + 500;
-  while (time > millis()) {
-    recieveCAN();
-  }
-  //set relays high
-  digitalWrite(RELAY1, HIGH);
-  digitalWrite(LVRELAY, HIGH);
-  //send heartbeat
-  Serial.print("Heartbeat\n");
-  msg.id = 0x042;
-  msg.len = 1;
-  msg.data[0] = 0x00;
-  Can.send(msg);
-  //send normal shutdown message
-  Serial.print("Normal Shutdown\n");
-  msg = CanMessage();
-  msg.id = 0x521;
-  msg.len = 0;
-  Can.send(msg);
-  //send readings
-  Serial.print("Readings\n");
-  sendReadings();
-  //wait
-  delay(1000);
-  //sent emergency message
-  Serial.print("Emergency Shutdown\n");
-  msg.id = 0x022;
-  msg.len = 1;
-  msg.data[0] = 0x10;
-  Can.send(msg);
-  //turn relays off
-  digitalWrite(RELAY1, LOW);
-  digitalWrite(LVRELAY, LOW);
-  delay(1000);
-}
-*/
-
 //loop through operations
 void loop() {
   //perform different operations depending on state of the car
-  switch (state) {
-    
+  switch (state) {  
     //startup state
     case 0: {
       checkReadings();
@@ -467,11 +338,8 @@ void loop() {
       }
       long prechargeV = (readV1() / 1000.0); //milliVolts -> Volts
       int prechargeTarget = 80; //~100V ?
-      if (prechargeV < prechargeTarget) { //wait for precharge
-        //Serial.print("Motor Voltage: ");
-        //Serial.print(prechargeV, DEC);
-        //Serial.print("V\n");
-        delay(50);
+      if (prechargeV < prechargeTarget) {
+        delay(50); //wait for precharge
       }
       else {
         Serial.print("Precharge Voltage Reached\n");
@@ -499,7 +367,6 @@ void loop() {
         digitalWrite(BUZZER, HIGH);
         delay(100);
         digitalWrite(BUZZER, LOW);
-        //attachInterrupt(CANINT, recieveCAN(), RISING);
         //begin looking for CAN messages
         Can.begin(500);
         CanBufferInit();
@@ -510,11 +377,34 @@ void loop() {
       
     //normal operation state
     case 1: {
-      //recieve CAN messages for 1 second
+      //recieve CAN messages for 1/2 second
       while ((millis() - cycleTime) <= 500) {
+        //recieve CAN messages (heartbeats/error messages)
         recieveCAN();
+        //error detected
         if (state == 3) {
           break;
+        }
+        //normal shutdown initiated
+        if (digitalRead(IO_T1) == HIGH) {
+          state = 2;
+          break;
+        }
+        //play tetris
+        if (digitalRead(IO_T2) == HIGH && !playingSong) {
+          playingSong = true;
+          duration = tetrisDuration;
+          notes = tetrisNotes;
+          size = tetrisSize;
+          currentNote = 0;
+        }
+        //play bad romance
+        else if (digitalRead(IO_T3) == HIGH && !playingSong) {
+          playingSong = true;
+          duration = badRomanceDuration;
+          notes = badRomanceNotes;
+          size = badRomanceSize;
+          currentNote = 0;
         }
         //shut off buzzer/LED if no longer sending warning
         if (millis() > warningTime && !playingSong) {
@@ -524,7 +414,7 @@ void loop() {
         //play some tunes
         if (playingSong && endOfNote < millis()) {
           int noteDuration = 1000/duration[currentNote];
-          //tone(BUZZER, notes[currentNote], noteDuration);
+          tone(BUZZER, notes[currentNote], noteDuration);
           int pause = noteDuration * 1.30;
           endOfNote = millis() + pause;
           currentNote++;
@@ -535,36 +425,14 @@ void loop() {
         }
       }
       if (state == 3) {
-        Serial.print("Emergency Shutdown\n");
         break;
-      }
-      //Off signal
-      if (digitalRead(IO_T1) == HIGH) {
-        state = 2;
-        Serial.print("Normal Shutdown\n");
-      }
-      //play tetris
-      if (digitalRead(IO_T2) == HIGH && !playingSong) {
-        playingSong = true;
-        duration = tetrisDuration;
-        notes = tetrisNotes;
-        size = tetrisSize;
-        currentNote = 0;
-      }
-      //play bad romance
-      else if (digitalRead(IO_T3) == HIGH && !playingSong) {
-        playingSong = true;
-        duration = badRomanceDuration;
-        notes = badRomanceNotes;
-        size = badRomanceSize;
-        currentNote = 0;
       }
       checkReadings();
       sendReadings();
       //check critical board heartbeats
-      if (!(batteryHB)) { // && motorHB && mpptHB)) {
+      if (!(batteryHB && motorHB && mpptHB)) {
         //Serial.print("Critical Heartbeat Undetected\n");
-        //state = 3;
+        state = 3;
         msg.id = 0x022;
         msg.len = 1;
         msg.data[0] = 0x10;
@@ -575,19 +443,19 @@ void loop() {
       if (!(ioHB && controlsHB)) {
         //Serial.print("Non-critical Heartbeat Undetected\n");
         digitalWrite(LEDFAIL, HIGH);
-        //digitalWrite(BUZZER, HIGH);
+        digitalWrite(BUZZER, HIGH);
         warningTime = millis() + longWarning;
       }
       //set new time
       cycleTime = millis();
       //reset heartbeat values
       batteryHB = false;
-      //motorHB = false;
-      //mpptHB = false;
       ioHB = false;
       controlsHB = false;
       telemetryHB = false;
       dataloggerHB = false;
+      motorHB = false;
+      mpptHB = false;
       //send cutoff heartbeat
       //Serial.print("Sending Heartbeat\n");
       msg.id = 0x042;
@@ -599,6 +467,7 @@ void loop() {
       
     //normal state -> shutdown
     case 2: {
+      //Serial.println("Normal Shutdown");
       msg = CanMessage();
       msg.id = 0x521;
       msg.len = 0;
@@ -613,15 +482,14 @@ void loop() {
       
     //error state -> shutdown
     case 3: {
+      //Serial.println("Emergency Shutdown");
       digitalWrite(LEDFAIL, HIGH);
-      //digitalWrite(BUZZER, HIGH);
+      digitalWrite(BUZZER, HIGH);
       //turn off relays
       digitalWrite(RELAY1, LOW);
       digitalWrite(RELAY2, LOW);
       digitalWrite(RELAY3, LOW);
       digitalWrite(LVRELAY, LOW);
-      //blah blah
-      state = 0;
     }
     break;
   }
