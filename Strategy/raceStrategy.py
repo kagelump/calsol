@@ -13,14 +13,11 @@ def calc_dE(velocity, latitude, longitude, altitude, start_time=time.strftime("%
 	# Format: Year Month Day Hour:Min
 	if end_time == "17:00":
 		end_time = time.strftime("%Y %m %d", time.localtime()) + " 17:00"
-	
-	it = iter_dE(velocity, latitude, longitude,
-                 start_time, end_time, cloudy)
-    for (done, dE) in it:
+	it = iter_dE(velocity, latitude, longitude, start_time, end_time, cloudy)
+	for (done, dE) in it:
 		if done:
 			return dE
- 
-
+			
 def iter_dE(velocity, latitude, longitude, start_time, end_time, cloudy):
 	# Time Objects for Kevin's Program
 	# Arguments should be in this format: "Year Month Day Hour:Min"
@@ -33,16 +30,16 @@ def iter_dE(velocity, latitude, longitude, start_time, end_time, cloudy):
 	# "2011 10 11 14:00"
 	dST = datetime.strptime(start_time, "%Y %m %d %H:%M")
 	dET = datetime.strptime(end_time, "%Y %m %d %H:%M")
-
-    it = defaultModel.energy_loss_iterator(velocity,
+	
+	it = defaultModel.energy_loss_iterator(velocity,
                                            latitude,
                                            longitude,
                                            time.mktime(et)-time.mktime(st))
-    for (done, losses) in it:
-        yield (False, -losses)
-        if done:
-            break
-    yield (True, powerGeneration(latitude, velocity, dST, dET, cloudy) - losses)
+	for (done, losses) in it:
+		yield (False, -losses)
+		if done:
+			break
+	yield (True, powerGeneration(latitude, velocity, dST, dET, cloudy) - losses)
 
 def calc_V(energy, latitude, longitude, altitude, start_time = time.strftime("%Y %m %d %H:%M", time.localtime()), end_time="17:00", cloudy=0):
 
@@ -50,32 +47,30 @@ def calc_V(energy, latitude, longitude, altitude, start_time = time.strftime("%Y
 	# Format: Year Month Day Hour:Min
 	if end_time == "17:00":
 		end_time = time.strftime("%Y %m %d", time.localtime()) + " 17:00"
-
-    it = iter_V(energy, latitude, longitude, altitude,
-                start_time, end_time, cloudy)
-    for (done, velocity) in it:
-        if done:
-            return velocity
+	it = iter_V(energy, latitude, longitude, altitude, start_time, end_time, cloudy)
+	for (done, velocity) in it:
+		if done:
+			return velocity
  
 # function 2: Given energy, find velocity
-def iter_V(energy, latitude, longitude, altitude, start_time, time.localtime()), end_time, cloudy):
+def iter_V(energy, latitude, longitude, altitude, start_time, end_time, cloudy):
     # Start with an arbitrary average velocity... say...50 km/h
-    velocity_guess = 50.0
+	velocity_guess = 50.0
     # error_bound
-    error = 0.01
+	error = 0.01
     # limit the number of iterations in case newton's method diverges
-    iteration_limit = 200
-    current_iteration = 0
-    dv = 0.01
+	iteration_limit = 200
+	current_iteration = 0
+	dv = 0.01
 	# Time Objects
-    st = time.strptime(start_time, "%Y %m %d %H:%M")
-    et = time.strptime(end_time, "%Y %m %d %H:%M")
-    dt = time.mktime(et) - time.mktime(st)
+	st = time.strptime(start_time, "%Y %m %d %H:%M")
+	et = time.strptime(end_time, "%Y %m %d %H:%M")
+	dt = time.mktime(et) - time.mktime(st)
 	# Datetime Objects
 	dST = datetime.strptime(start_time, "%Y %m %d %H:%M")
 	dET = datetime.strptime(end_time, "%Y %m %d %H:%M")
 	
-    start = GPSCoordinate(latitude, longitude, altitude)
+	start = GPSCoordinate(latitude, longitude, altitude)
     # We try to find a velocity such that the energy generated - the energy
     # consumed = the specified energy change. In order to do this, we start
     # with a guess for the correct velocity and use Newton's method to get
@@ -84,28 +79,27 @@ def iter_V(energy, latitude, longitude, altitude, start_time, time.localtime()),
     # the root and repeatedly updating the guess by finding the tangent to f(x)
     # at the guess and then finding the intersection of that tangent and the x
     # axis. This x-value of this intersection point is the new guess.
-    while current_iteration < iteration_limit:
+	while current_iteration < iteration_limit:
         energy_gen = powerGeneration(latitude, velocity_guess, dST, dET, cloudy)
         energy_loss = powerConsumption(start, velocity_guess, dt)
         energy_change = energy_gen - energy_loss
         if math.fabs(energy_change - energy) < error:
-            yield (True, velocity_guess)
-            print 'answer=',velocity_guess
-            break
-        else: 
-            # Update velocity guess value
-            energy_gen = powerGeneration(latitude, velocity_guess+dv, dST, dET, cloudy)
-            energy_loss = powerConsumption(start, velocity_guess+dv, dt)
-            print 'powerGeneration: ', energy_gen
-            print 'powerConsumption: ', energy_loss
-            
-            E_prime = ((energy_gen - energy_loss) - energy_change) / dv
-            #print 'eprime: ', E_prime
-            velocity_guess = velocity_guess - (energy_change - energy) / E_prime
-            current_iteration += 1
-            yield (False, velocity_guess)
-
-    if not(math.fabs(energy_change - energy) < error):
+			yield (True, velocity_guess)
+			print 'answer=',velocity_guess
+			break
+		else:
+			# Update velocity guess value
+			energy_gen = powerGeneration(latitude, velocity_guess+dv, dST, dET, cloudy)
+			energy_loss = powerConsumption(start, velocity_guess+dv, dt)
+			print 'powerGeneration: ', energy_gen
+			print 'powerConsumption: ', energy_loss
+			
+			E_prime = ((energy_gen - energy_loss) - energy_change) / dv
+			velocity_guess = velocity_guess - (energy_change - energy) / E_prime
+			current_iteration += 1
+			yield (False, velocity_guess)
+	
+	if not(math.fabs(energy_change - energy) < error):
         # Sometime's Newton's method diverges, so we use a more reliable naive 
 		# method if Newton's fails to converge after the set amount of iterations.
         
@@ -153,7 +147,7 @@ def iter_V(energy, latitude, longitude, altitude, start_time, time.localtime()),
                 velocity_guess -= increment_amount
             current_iteration += 1
             yield (False, velocity_guess)
-    if not(math.fabs(energy_change - energy) < error):
+	if not(math.fabs(energy_change - energy) < error):
         # DOOM
         print "Max iterations exceeded. Try different inputs."
         yield (True, -1)
