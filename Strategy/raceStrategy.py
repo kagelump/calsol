@@ -1,21 +1,38 @@
+# Converting the main code to use datetime objects as well instead of just time objects
+# Took out defaults from the iter functions
 import time, math
-from models.energy import defaultModel, load_data, powerConsumption,\
-                          GPSCoordinate
+from datetime import datetime
+from models.energy import defaultModel, load_data, GPSCoordinate#, powerConsumption
 from models.Predictor import powerGeneration
 # function 1: Given velocity, find energy
 # Default start: Now, end: 5 PM (17:00)
 # energy change=energy generated-energy consumed
-def calc_dE(velocity, latitude, longitude, altitude, start_time=time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
-    it = iter_dE(velocity, latitude, longitude,
+def calc_dE(velocity, latitude, longitude, altitude, start_time=time.strftime("%Y %m %d %H:%M", time.localtime()), end_time="17:00", cloudy=0):
+    
+	# Must convert end_time into a proper string 
+	# Format: Year Month Day Hour:Min
+	if end_time == "17:00":
+		end_time = time.strftime("%Y %m %d", time.localtime()) + " 17:00"
+	
+	it = iter_dE(velocity, latitude, longitude,
                  start_time, end_time, cloudy)
     for (done, dE) in it:
-        if done:
-            return dE
+		if done:
+			return dE
  
 
-def iter_dE(velocity, latitude, longitude, start_time=time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
-    st = time.strptime("Oct 11 " + start_time, "%b %y %H:%M")
-    et = time.strptime("Oct 11 " + end_time, "%b %y %H:%M")
+def iter_dE(velocity, latitude, longitude, start_time, end_time, cloudy):
+	# Time Objects for Kevin's Program
+	# Arguments should be in this format: "Year Month Day Hour:Min"
+	# "2011 10 11 14:00"
+	st = time.strptime(start_time, "%Y %m %d %H:%M")
+	et = time.strptime(end_time, "%Y %m %d %H:%M")
+
+	# Datetime Objects for Wesley's Program
+	# Arguments should be in this format: "Year Month Day Hour:Min"
+	# "2011 10 11 14:00"
+	dST = datetime.strptime(start_time, "%Y %m %d %H:%M")
+	dET = datetime.strptime(end_time, "%Y %m %d %H:%M")
 
     it = defaultModel.energy_loss_iterator(velocity,
                                            latitude,
@@ -25,9 +42,15 @@ def iter_dE(velocity, latitude, longitude, start_time=time.strftime("%H:%M", tim
         yield (False, -losses)
         if done:
             break
-    yield (True, powerGeneration(latitude, velocity, st, et, cloudy) - losses)
+    yield (True, powerGeneration(latitude, velocity, dST, dET, cloudy) - losses)
 
-def calc_V(energy, latitude, longitude, altitude, start_time = time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
+def calc_V(energy, latitude, longitude, altitude, start_time = time.strftime("%Y %m %d %H:%M", time.localtime()), end_time="17:00", cloudy=0):
+
+	# Must convert end_time into a proper string 
+	# Format: Year Month Day Hour:Min
+	if end_time == "17:00":
+		end_time = time.strftime("%Y %m %d", time.localtime()) + " 17:00"
+
     it = iter_V(energy, latitude, longitude, altitude,
                 start_time, end_time, cloudy)
     for (done, velocity) in it:
@@ -35,7 +58,7 @@ def calc_V(energy, latitude, longitude, altitude, start_time = time.strftime("%H
             return velocity
  
 # function 2: Given energy, find velocity
-def iter_V(energy, latitude, longitude, altitude, start_time = time.strftime("%H:%M", time.localtime()), end_time="17:00", cloudy=0):
+def iter_V(energy, latitude, longitude, altitude, start_time, time.localtime()), end_time, cloudy):
     # Start with an arbitrary average velocity... say...50 km/h
     velocity_guess = 50.0
     # error_bound
@@ -44,9 +67,14 @@ def iter_V(energy, latitude, longitude, altitude, start_time = time.strftime("%H
     iteration_limit = 200
     current_iteration = 0
     dv = 0.01
-    st = time.strptime("Oct 11 " + start_time, "%b %y %H:%M")
-    et = time.strptime("Oct 11 " + end_time, "%b %y %H:%M")
+	# Time Objects
+    st = time.strptime(start_time, "%Y %m %d %H:%M")
+    et = time.strptime(end_time, "%Y %m %d %H:%M")
     dt = time.mktime(et) - time.mktime(st)
+	# Datetime Objects
+	dST = datetime.strptime(start_time, "%Y %m %d %H:%M")
+	dET = datetime.strptime(end_time, "%Y %m %d %H:%M")
+	
     start = GPSCoordinate(latitude, longitude, altitude)
     # We try to find a velocity such that the energy generated - the energy
     # consumed = the specified energy change. In order to do this, we start
@@ -57,7 +85,7 @@ def iter_V(energy, latitude, longitude, altitude, start_time = time.strftime("%H
     # at the guess and then finding the intersection of that tangent and the x
     # axis. This x-value of this intersection point is the new guess.
     while current_iteration < iteration_limit:
-        energy_gen = powerGeneration(latitude, velocity_guess, st, et, cloudy)
+        energy_gen = powerGeneration(latitude, velocity_guess, dST, dET, cloudy)
         energy_loss = powerConsumption(start, velocity_guess, dt)
         energy_change = energy_gen - energy_loss
         if math.fabs(energy_change - energy) < error:
@@ -66,7 +94,7 @@ def iter_V(energy, latitude, longitude, altitude, start_time = time.strftime("%H
             break
         else: 
             # Update velocity guess value
-            energy_gen = powerGeneration(latitude, velocity_guess+dv, st, et, cloudy)
+            energy_gen = powerGeneration(latitude, velocity_guess+dv, dST, dET, cloudy)
             energy_loss = powerConsumption(start, velocity_guess+dv, dt)
             print 'powerGeneration: ', energy_gen
             print 'powerConsumption: ', energy_loss
@@ -78,8 +106,10 @@ def iter_V(energy, latitude, longitude, altitude, start_time = time.strftime("%H
             yield (False, velocity_guess)
 
     if not(math.fabs(energy_change - energy) < error):
-        # Sometime's Newton's method diverges, so we use a more reliable naive nethod if Newton's fails to converge after the set amount of iterations.
-        # Reset velocity_guess
+        # Sometime's Newton's method diverges, so we use a more reliable naive 
+		# method if Newton's fails to converge after the set amount of iterations.
+        
+		# Reset velocity_guess
         velocity_guess = 50.0
         # Reset current_iteration
         current_iteration = 0
@@ -100,7 +130,7 @@ def iter_V(energy, latitude, longitude, altitude, start_time = time.strftime("%H
         # correct velocity, so we half the increment amount to zero in on the
         # correct velocity.
         while current_iteration < iteration_limit:
-            energy_gen = powerGeneration(latitude, velocity_guess, st, et, cloudy)
+            energy_gen = powerGeneration(latitude, velocity_guess, dST, dET, cloudy)
             energy_loss = powerConsumption(start, velocity_guess, dt)
             energy_change = energy_gen - energy_loss
             if math.fabs(energy_change-energy) < error:
@@ -133,9 +163,9 @@ def iter_V(energy, latitude, longitude, altitude, start_time = time.strftime("%H
 ##    energy_change = (1-cloudy)*(time.mktime(end_time)-time.mktime(start_time))
 ##    return energy_change
 
-##def powerConsumption((latitude, longitude, altitude), velocity, time):
-##    energy_eaten = 0.3*time*velocity
-##    return energy_eaten
+def powerConsumption((latitude, longitude, altitude), velocity, time):
+    energy_eaten = 0.3*time*velocity
+    return energy_eaten
 
 
 # Main Caller and Loop Function
@@ -162,13 +192,14 @@ if __name__ == '__main__':
                 longitude=raw_input("Please enter your current longitude coordinate: ")
                 lat=raw_input("Please enter your current latitude coordinate: ")
                 alt=raw_input("Please enter your current altitude: ")
-                startTime=raw_input("Please enter your desired start time. Format: 'hr:min' (24 hr time) If you leave this field blank, 'now' will be the start time. ")
+                startTime=raw_input("Please enter your desired start time. Format: 'year month day hr:min' (24 hr time) If you leave this field blank, 'now' will be the start time. ")
                 if startTime=="":
                     print ("Start time defaulted to now")
-                    startTime=time.strftime("%H:%M",time.localtime())
-                endTime=raw_input("Please enter your desired end time. Format: 'hr:min' (24 hr time) If you leave this field blank, 17:00 will be the start time. ")
+                    startTime=time.strftime("%Y %m %d %H:%M",time.localtime())
+                endTime=raw_input("Please enter your desired end time. Format: 'year month day hr:min' (24 hr time) If you leave this field blank, 17:00 will be the start time. ")
                 if endTime=="":
-                    print ("End time defaulted to 17:00")
+                    print ("End time defaulted to today at 17:00")
+					# Default endTime will be handled along the way
                     endTime="17:00"
                 energyState=raw_input("Please enter the energy level (in MJ) of the batteries at the start location: ")
                 cloudiness=raw_input("Please enter a projected %cloudy value [0,1]. If you leave this field blank, historical values will be used. ")
@@ -181,14 +212,15 @@ if __name__ == '__main__':
                 longitude=raw_input("Please enter your current longitude coordinate: ")
                 lat=raw_input("Please enter your current latitude coordinate: ")
                 alt=raw_input("Please enter your current altitude: ")
-                startTime=raw_input("Please enter your desired start time. Format: 'hr:min' (24 hr time) If you leave this field blank, 'now' will be the start time. ")
+                startTime=raw_input("Please enter your desired start time. Format: 'year month day hr:min' (24 hr time) If you leave this field blank, 'now' will be the start time. ")
                 if startTime=="":
                     print ("Start time defaulted to now")
-                startTime=time.strftime("%H:%M",time.localtime())
+					startTime=time.strftime("%Y %m %d %H:%M",time.localtime())
                 endTime=raw_input("Please enter your desired end time. Format: 'hr:min' (24 hr time) If you leave this field blank, 17:00 will be the start time. ")
                 if endTime=="":
-                    print ("End time defaulted to 17:00")
-                endTime="17:00"
+                    print ("End time defaulted to today at 17:00")
+					# This'll be handled later
+					endTime="17:00"
                 energyState=raw_input("Please enter the energy level (in MJ) of the batteries at the start location: ")
                 cloudiness=raw_input("Please enter a projected %cloudy value [0,1]. If you leave this field blank, historical values will be used. ")
                 if cloudiness=="":
@@ -206,7 +238,7 @@ if __name__ == '__main__':
             longitude = float(newLongitude)
             newLat = raw_input("Please enter a new latitude value: ")
             lat = float(newLat)
-            startTime = time.strftime("%H:%M", time.localtime())
+            startTime = time.strftime("%Y %m %d %H:%M", time.localtime())
             
             if type == "v":
                 # Calculate velocity given a change in energy
