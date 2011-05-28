@@ -1,0 +1,50 @@
+{.section name}
+    <h2>{name}</h2>
+{.end}
+{.section descriptors}
+    <table class="can-desc">
+    {.repeated section @}
+        <tr>
+            <th colspan=3 class="wide-header">{id}: {desc.name}</th>
+        </tr>
+        {.section desc}
+            <tr>
+                <th>Format</th>
+                <td colspan=2 style="border-collapse: collapse;">{format|struct-css}</td>
+            </tr>
+            {.section period}
+                <tr>
+                    <th>Period</th>
+                    <td colspan=2>{period}ms</td>
+                </tr>
+            {.end}
+            {.section messages}
+                <tr>
+                    <th colspan=3 class="wide-header">Messages</th>
+                </tr>
+                <tr>
+                    <th>Name</th>
+                    <th>Units</th>
+                    <th>Description</th>
+                <tr>
+                {.repeated section @}
+                    <tr>
+                        <td>{0}</td>
+                        <td>{1}</td>
+                        <td>{2}</td>
+                    </tr>
+                {.end}
+            {.end}            
+            {.section description}
+                <tr>
+                    <th colspan=3 class="wide-header">Packet Description</th>
+                </tr>
+                <tr>
+                    <td colspan=3>{description}</td>
+                </tr>
+            {.end}
+            <tr><th colspan=3 class="spacer"><br><br></th></tr>
+        {.end}
+    {.end}
+    </table>
+{.end}

@@ -1,0 +1,182 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>CAN JSON->HTML Test</title>
+        <style type="text/css">
+            td, th {
+                text-align: left;
+            }
+
+            table.can-desc {
+                border-collapse: collapse;
+                width: 800px;
+            }
+            
+            table.can-desc th, td {
+                border-width: 1px;
+                border-style: solid;
+                border-color: black;
+            }
+
+            table.can-desc th.spacer {
+                border-left-width: 0px;
+                border-right-width: 0px;
+                border-bottom-width: 0px;
+            }
+
+            th.wide-header {
+                text-align: center;
+            }
+
+            div.struct-field {
+                text-align: center;
+                border-width: 0px;
+                border-color: black;
+                border-style: solid;
+                float: left;
+            }
+                
+        </style>
+        <script type="text/javascript" src="json-template.js"></script>
+        <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.js"></script>
+        <script type="text/javascript">
+            var src = null;
+            var descs = null;
+            var template = null;
+
+            function display_message(html) {
+                $("#message-area").html(html);
+            }
+
+            function listify(json) {
+                var out = [];
+                for (var key in json) {
+                    out.push({ id: key, desc: json[key]});
+                }
+                return out;
+            }
+
+            function parse_format(format) {
+                var size_table = {
+                    x: 1,
+                    c: 1, b: 1, B: 1,
+                    h: 2, H: 2,
+                    i: 4, I: 4, l: 4, L: 4,
+                    q: 8, Q: 8,
+                    f: 4, d: 4
+                };
+                var digits = '012345678';
+                var count = 1;
+                var size = 0;
+                var fields = [];
+                for (var i=0; i < format.length; i++) {
+                    if (digits.indexOf(format[i]) != -1) {
+                        if (i > 0 && digits.indexOf(format[i-1]) != -1)
+                            alert("Blah, you specified a format count > 10 on an 8-byte format...");
+                        count = new Number(format[i]);
+                    } else {
+                        if (format[i] == 's') {
+                            fields.push({code: format[i],
+                                         size: count});
+                            size += count;
+                            count = 1;
+                            continue;
+                        }
+                        for (var j=count; j > 0; j--) {
+                            var field_size = size_table[format[i]]
+                            fields.push({code: format[i],
+                                         size: field_size});
+                            size += field_size
+                        }
+                        count = 1;
+                    }
+                }
+                for (var i=size; i < 8; i++) {
+                    fields.push({code: 'x', size: 1});
+                }
+
+                return fields;
+            }
+            function format_struct_css(format) {
+                var name_map = {
+                    x: "pad byte",
+                    c: "char", b: "signed byte", B: "unsigned byte",
+                    h: "signed short", H: "unsigned short",
+                    i: "signed int", I: "unsigned int",
+                    l: "signed int", L: "unsigned int",
+                    q: "signed long long", Q: "unsigned long long",
+                    f: "float", d: "float", s: "string"
+                }
+                var s = "";
+                var fields = parse_format(format);
+                for (var i=0; i < fields.length; i++) {
+                    var field = fields[i];
+                    s += "<div class='struct-field' style='width:";
+                    s += 12 * field['size'] + "%;"
+                    if (i != fields.length - 1)
+                        s += " border-right-width: 1px;";
+                    s += "'>";
+                    s += name_map[field['code']];
+                    s += '</div>';
+                }
+                return s;
+            }
+
+            function more_formatters(name) {
+                if (name == "struct-css")
+                    return format_struct_css;
+                else
+                    return null;
+            }
+            
+            function display_error(jqXHR, textStatus, errorThrown) {
+                display_message(textStatus + ":" + errorThrown);
+            }
+
+            function load_template(text, textStatus, jqXHR) {
+                var options = {more_formatters: more_formatters}
+                template = jsontemplate.Template(text, options);
+                render_template(descs, textStatus, jqXHR);
+            }
+
+            function render_template(json, textStatus, jqXHR) {
+                //display_message("Loaded json source");
+                descs = json;
+                if (template == null) {
+                    $.ajax("desc-template.jsont", {
+                        success:  load_template,
+                        error:    display_error,
+                        dataType: "text"
+                    });
+                } else {
+                    var full = {"name" : src, "descriptors" : listify(descs)};
+                    var html = template.expand(full);
+                    //display_message("Rendered json");
+                    $("#content-area").html(html);
+                }
+            }
+            
+            $(document).ready(function() {
+                var params = window.location.search;
+                var regex = /src=([^&]+)/ig;
+                var result = regex.exec(params);
+                if (!result) {
+                    display_message("No source json data specified in url");
+                    return;
+                } else {
+                    src = result[1];
+                    //display_message("Fetching " + src);
+                    $.ajax(src, {
+                        success:  render_template,
+                        error:    display_error,
+                        dataType: "json",
+                    });
+                }   
+            });
+        </script>
+    </head>
+    <body>
+    <div id="message-area"></div>
+    <div id="content-area"></div>
+    </body>
+</html>
