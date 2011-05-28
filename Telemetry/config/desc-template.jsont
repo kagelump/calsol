@@ -8,9 +8,19 @@
             <th colspan=3 class="wide-header">{id}: {desc.name}</th>
         </tr>
         {.section desc}
+            {.section source}
+            <tr>
+                <th>Source</th>
+                <td colspan=2>{source}</td>
+            </tr>
+            {.end}
             <tr>
                 <th>Format</th>
-                <td colspan=2 style="border-collapse: collapse;">{format|struct-css}</td>
+                {.section format}
+                <td colspan=2>{format|struct-css}</td>
+                {.or}
+                <td colspan=2><div style="color: red">No format specified</div></td>
+                {.end}
             </tr>
             {.section period}
                 <tr>

@@ -91,9 +91,6 @@
                         count = 1;
                     }
                 }
-                for (var i=size; i < 8; i++) {
-                    fields.push({code: 'x', size: 1});
-                }
 
                 return fields;
             }
@@ -109,15 +106,21 @@
                 }
                 var s = "";
                 var fields = parse_format(format);
+                var size = 0;
                 for (var i=0; i < fields.length; i++) {
                     var field = fields[i];
                     s += "<div class='struct-field' style='width:";
                     s += 12 * field['size'] + "%;"
-                    if (i != fields.length - 1)
+                    size += field['size'];
+                    if (i != fields.length - 1 || size < 8)
                         s += " border-right-width: 1px;";
                     s += "'>";
                     s += name_map[field['code']];
                     s += '</div>';
+                }
+                if (size < 8) {
+                    s += "<div style='max-width:" + 12*(8-size) + "%;'>";
+                    s += "</div>";
                 }
                 return s;
             }
