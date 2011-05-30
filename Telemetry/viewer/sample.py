@@ -339,6 +339,14 @@ class XOMBIEStream:
     def start(self):
         self.xbee = XBee(self.port, callback=self.process, escaped=True)
 
+    def at_command(self, command, parameter=None, callback=None):
+        self.xbee.send("at",
+                       command=command,
+                       parameter=parameter,
+                       frame_id=struct.pack(">B", self.next_frame_id))
+        self.frame_cache[self.next_frame_id] = command, callback
+        self.next_frame_id = (1 + self.next_frame_id) % 256
+
     def send_handshake1(self):
         "Send the first handshake message, 0x81 to connect to the board"
         self.send_no_ack("\x81" + self.name)
@@ -374,16 +382,16 @@ class XOMBIEStream:
             self.state = XOMBIEStream.UNASSOCIATED
 
     def process(self, frame):
-        #print frame
+        print frame
         #print "\a"
         if frame["id"] == "rx_long_addr":
-            alpha = 0.9
+            alpha = 0.5
             rssi = -ord(frame["rssi"])
             if self.rssi_average is None:
                 self.rssi_average = rssi
             else:
                 self.rssi_average = self.rssi_average * (1-alpha) + rssi
-            print "\rRSSI:" + str(self.rssi_average),
+            print "RSSI:" + str(rssi)
             self.last_received = datetime.datetime.utcnow()
             msg = frame["rf_data"]
             (source, ) = struct.unpack(">q", frame["source_addr"])
@@ -437,7 +445,7 @@ class XOMBIEStream:
                             self.put_data(ident, (self.abs_start+dt, datum), msg_desc)
                             self.msg_queue.put((id_, msg_desc[0], self.abs_start+dt, datum))
                             #self.logger.info("Got packet %s = %s", ident, datum)
-        elif frame["id"] == "tx_status":
+        elif frame["id"] == "tx_status" or "frame_id" in frame:
             (frame_id,) = struct.unpack(">B", frame["frame_id"])
             if frame_id in self.frame_cache:
                 data, callback = self.frame_cache.pop(frame_id)

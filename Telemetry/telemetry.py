@@ -6,6 +6,7 @@ import math
 import json
 from Queue import Queue, PriorityQueue
 import sqlite3 as sql
+import struct
 
 from PySide import QtGui, QtCore
 
@@ -100,6 +101,7 @@ class XOMBIEThread(QtCore.QThread):
         self.should_query = False
         self.should_test = False
         self.should_reassociate = False
+        self.should_discover = False
         
         link(self.started, self.setup)
 
@@ -149,7 +151,33 @@ class XOMBIEThread(QtCore.QThread):
             self.should_reassociate = False
             self.stream.logger.info("Resetting to UNASSOCIATED mode")
             self.stream.state = XOMBIEStream.UNASSOCIATED
-        
+        elif self.should_discover:
+            self.should_discover = False
+            self.stream.logger.info("Requesting node discover")
+            def display_nodes(resp):
+                if "parameter" not in resp or not resp["parameter"]:
+                    self.stream.logger.info("No nodes found")
+                    return
+                
+                results = resp["parameter"]
+                self.stream.logger.info("Node discover results:")
+                fmt = "<HIIB"
+                while results:
+                    data = results[:struct.calcsize(fmt)]
+                    results = results[struct.calcsize(fmt):]
+                    ident = results[:results.find("\x00")]
+                    results = results[results.find("\x00")+1:]
+
+                    unpacked = struct.unpack(fmt, data)
+                    short_addr, long_addr_high, long_addr_low, rssi = unpacked
+                    self.stream.logger.info("Node ID: %s" % ident)
+                    self.stream.logger.info("16-bit address: %#x" % short_addr)
+                    self.stream.logger.info("64-bit address: %#08X%08X" %
+                                            (long_addr_high, long_addr_low))
+                    self.stream.logger.info("RSSI: %ddBm" % -rssi)
+            self.stream.at_command("NO", parameter="\x01")
+            self.stream.at_command("ND", callback=display_nodes)
+
         five_seconds = datetime.timedelta(seconds=5)
         if self.stream.state is XOMBIEStream.UNASSOCIATED and not self.checking_assoc:
             self.stream.send_handshake1()
@@ -526,6 +554,20 @@ class TelemetryViewerWindow(QtGui.QMainWindow):
                 app.xombie_thread.should_reassociate = True
         
         link(self.reassociateAction.triggered, trigger_reassociate)
+
+
+        self.nodeDiscoverIcon = find_icon("applications-internet.png")
+        self.nodeDiscoverAction = QtGui.QAction(self.nodeDiscoverIcon, "", self)
+
+        self.nodeDiscoverButton = QtGui.QToolButton()
+        self.nodeDiscoverButton.setDefaultAction(self.nodeDiscoverAction)
+        self.toolBar.addWidget(self.nodeDiscoverButton)
+
+        def trigger_node_discover():
+            if self.app.xombie_thread.isRunning():
+                app.xombie_thread.should_discover = True
+        
+        link(self.nodeDiscoverAction.triggered, trigger_node_discover)
         
         self.addToolBar(QtCore.Qt.TopToolBarArea, self.toolBar)
         #self.insertToolBarBreak(self.toolBar)
