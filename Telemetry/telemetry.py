@@ -156,26 +156,22 @@ class XOMBIEThread(QtCore.QThread):
             self.stream.logger.info("Requesting node discover")
             def display_nodes(resp):
                 if "parameter" not in resp or not resp["parameter"]:
-                    self.stream.logger.info("No nodes found")
                     return
                 
                 results = resp["parameter"]
-                self.stream.logger.info("Node discover results:")
+                self.stream.logger.info("Node discovered:")
                 fmt = "<HIIB"
-                while results:
-                    data = results[:struct.calcsize(fmt)]
-                    results = results[struct.calcsize(fmt):]
-                    ident = results[:results.find("\x00")]
-                    results = results[results.find("\x00")+1:]
+                data = results[:struct.calcsize(fmt)]
+                ident = results[struct.calcsize(fmt):-1]
+                
+                unpacked = struct.unpack(fmt, data)
+                short_addr, long_addr_high, long_addr_low, rssi = unpacked
 
-                    unpacked = struct.unpack(fmt, data)
-                    short_addr, long_addr_high, long_addr_low, rssi = unpacked
-                    self.stream.logger.info("Node ID: %s" % ident)
-                    self.stream.logger.info("16-bit address: %#x" % short_addr)
-                    self.stream.logger.info("64-bit address: %#08X%08X" %
-                                            (long_addr_high, long_addr_low))
-                    self.stream.logger.info("RSSI: %ddBm" % -rssi)
-            self.stream.at_command("NO", parameter="\x01")
+                self.stream.logger.info("    Node ID: %s" % ident)
+                self.stream.logger.info("    64-bit addr: %#08X%08X" %
+                                        (long_addr_high, long_addr_low))
+                self.stream.logger.info("    RSSI: %ddBm" % -rssi)
+                
             self.stream.at_command("ND", callback=display_nodes)
 
         five_seconds = datetime.timedelta(seconds=5)

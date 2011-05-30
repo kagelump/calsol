@@ -448,9 +448,12 @@ class XOMBIEStream:
         elif frame["id"] == "tx_status" or "frame_id" in frame:
             (frame_id,) = struct.unpack(">B", frame["frame_id"])
             if frame_id in self.frame_cache:
-                data, callback = self.frame_cache.pop(frame_id)
+                data, callback = self.frame_cache[frame_id]
                 if callback:
-                    callback(frame)
+                    try:
+                        callback(frame)
+                    except:
+                        traceback.print_exc()
 
     def put_data(self, identifier, datum, desc=None):
         if identifier not in self.data_table:
