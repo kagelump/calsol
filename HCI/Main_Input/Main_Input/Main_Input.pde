@@ -87,7 +87,7 @@ void floatEncoder(CanMessage &msg,float spd, float v);
 void setup() {
   delay(2000);
         Can.begin(1000);
-  Serial.begin(115200);           // set up Serial library at 9600 bps
+ // Serial.begin(115200);           // set up Serial library at 9600 bps
   initPins();
   digitalWrite(DIGIT1_LED, HIGH);
   digitalWrite(DIGIT2_LED, HIGH);
@@ -228,6 +228,7 @@ void accel(){
 brakeOn = false;
 if(accel < ACCEL_THRESHOLD){
   setspeed = 0.0;
+  voltage = 0;
   return;
 }
 if(!digitalRead(VEHICLE_REV)){
@@ -596,13 +597,13 @@ void receiveCAN() {
     if (msg.id ==  0x403){
       recordedSpeed = floatDecode(msg);
       if (debug){
-          Serial.print("received speed:");
-          Serial.println(recordedSpeed);
+      //    Serial.print("received speed:");
+      //    Serial.println(recordedSpeed);
       }
     } else {
       if (debug){
-        Serial.print("We got an unknown packet with ID: ");
-        Serial.println(msg.id & 0x7FF, HEX);
+     //   Serial.print("We got an unknown packet with ID: ");
+     //   Serial.println(msg.id & 0x7FF, HEX);
       }
     }
     can_count++;
