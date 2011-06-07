@@ -168,13 +168,13 @@ void recieveCAN() {
     return;
   }
   msg = CanBufferRead();
-  Serial.print("0x");
-  Serial.println(msg.id,HEX);
-  if((msg.id & 0x0F0)==0x040) {
-    Serial.println("-------------------");
-    Serial.print("0x");
-    Serial.println(msg.data[0],HEX);
-    Serial.println("-------------------");
+  //Serial.print("0x");
+  //Serial.println(msg.id,HEX);
+  if((msg.id & 0x0F0)==0x040) { //heartbeat received
+    //Serial.println("-------------------");
+    //Serial.print("0x");
+    //Serial.println(msg.data[0],HEX);
+    //Serial.println("-------------------");
   }
   switch (msg.id) {
     
@@ -283,35 +283,6 @@ void recieveCAN() {
   }
 }
 
-//play music on the buzzer
-void playMusic(int song) {
-  int* duration;
-  int* notes;
-  int size = 0;
-  long endOfNote;
-  //choose song
-  if (song == 1) {
-    duration = tetrisDuration;
-    notes = tetrisNotes;
-    size = tetrisSize;
-  }
-  else if (song == 2) {
-    duration = badRomanceDuration;
-    notes = badRomanceNotes;
-    size = badRomanceSize;
-  }
-  //play chosen song
-  playingSong = true;
-  for (int thisNote = 0; thisNote < size; thisNote++) {
-    int noteDuration = 1000/duration[thisNote];
-    //tone(BUZZER, notes[thisNote], noteDuration);
-    int pause = noteDuration * 1.30;
-    delay(pause); 
-  }
-  playingSong = false;
-  digitalWrite(BUZZER, LOW);
-}
-
 /* ---------------------------------------------------------- */
 
 //set output pins
@@ -352,7 +323,6 @@ void setup() {
 void loop() {
   //perform different operations depending on state of the car
   switch (state) {
-    
     //startup state
     case 0: {
       //checkReadings();
@@ -361,15 +331,15 @@ void loop() {
       }
       long prechargeV = (readV1() / 1000.0); //milliVolts -> Volts
       int prechargeTarget = 80; //~100V ?
-      /*
+      
       if (prechargeV < prechargeTarget) { //wait for precharge
-        //Serial.print("Motor Voltage: ");
-        //Serial.print(prechargeV, DEC);
-        //Serial.print("V\n");
+        Serial.print("Motor Voltage: ");
+        Serial.print(prechargeV, DEC);
+        Serial.print("V\n");
         delay(50);
       }
       else {
-        */
+        
         Serial.print("Precharge Voltage Reached\n");
         //advance to next state
         state = 1;
@@ -377,11 +347,12 @@ void loop() {
         //DO NOT TURN ALL RELAYS ON AT ONCE
         //ADD A DELAY TO AVOID MASSIVE CURRENT SPIKE
         digitalWrite(RELAY1, HIGH);
-        delay(50);
+        delay(100);
         digitalWrite(RELAY2, HIGH);
-        delay(50);
+        delay(100);
         //digitalWrite(RELAY3, HIGH);
         //delay(50);
+        delay(1000);
         digitalWrite(LVRELAY, HIGH);
         //play happy buzzer noise
         digitalWrite(BUZZER, HIGH);
@@ -423,7 +394,10 @@ void loop() {
           break;
           Serial.println("Error in recieveCAN");
         }
-        
+        if (digitalRead(IO_T1) == HIGH) { //check for OFF switch
+          state = 2;
+          Serial.print("Normal Shutdown\n");
+        }
         //shut off buzzer/LED if no longer sending warning
         if (millis() > warningTime && !playingSong) {
           digitalWrite(LEDFAIL, LOW);
@@ -446,13 +420,13 @@ void loop() {
         Serial.print("Emergency Shutdown\n");
         break;
       }
-      //normal shutdown initiated
-      if (digitalRead(IO_T1) == HIGH) {
-        state = 2;
+      if (state == 2) { //normal shutdown initiated
         Serial.print("Normal Shutdown\n");
+        break;
       }
+
       //play tetris
-      if (digitalRead(IO_T2) == HIGH && !playingSong) {
+      if (digitalRead(IO_T2) == LOW && !playingSong) { //will need to attach a button to input to play these songs
         playingSong = true;
         duration = tetrisDuration;
         notes = tetrisNotes;
@@ -460,7 +434,7 @@ void loop() {
         currentNote = 0;
       }
       //play bad romance
-      else if (digitalRead(IO_T3) == HIGH && !playingSong) {
+      else if (digitalRead(IO_T3) == LOW && !playingSong) {
         playingSong = true;
         duration = badRomanceDuration;
         notes = badRomanceNotes;
