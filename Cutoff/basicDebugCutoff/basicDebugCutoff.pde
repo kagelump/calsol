@@ -170,12 +170,12 @@ void recieveCAN() {
   msg = CanBufferRead();
   //Serial.print("0x");
   //Serial.println(msg.id,HEX);
-  if((msg.id & 0x0F0)==0x040) { //heartbeat received
-    //Serial.println("-------------------");
-    //Serial.print("0x");
-    //Serial.println(msg.data[0],HEX);
-    //Serial.println("-------------------");
-  }
+  //if((msg.id & 0x0F0)==0x040) {
+  //  Serial.println("-------------------");
+  //  Serial.print("0x");
+  //  Serial.println(msg.data[0],HEX);
+  //  Serial.println("-------------------");
+  //}
   switch (msg.id) {
     
     //Emergencies
@@ -283,6 +283,7 @@ void recieveCAN() {
   }
 }
 
+
 /* ---------------------------------------------------------- */
 
 //set output pins
@@ -318,11 +319,41 @@ void setup() {
   Serial.begin(115200);
 }
 
+char checkOffSwitch(){
+      //normal shutdown initiated
+      if (digitalRead(IO_T1) == HIGH) {
+        state = 2;
+        Serial.print("Normal Shutdown\n");
+        return 1;
+      }
+      return 0;
+}
+
+void playSongs(){
+//shut off buzzer/LED if no longer sending warning
+        if (millis() > warningTime && !playingSong) {
+          digitalWrite(LEDFAIL, LOW);
+          digitalWrite(BUZZER, LOW);
+        }
+        //play some tunes
+        if (playingSong && endOfNote < millis()) {
+          int noteDuration = 1000/duration[currentNote];
+          tone(BUZZER, notes[currentNote], noteDuration);
+          int pause = noteDuration * 1.30;
+          endOfNote = millis() + pause;
+          currentNote++;
+          if (currentNote >= size) {
+            playingSong = false;
+            digitalWrite(BUZZER, LOW);
+          }
+        }
+}
 
 //loop through operations
 void loop() {
   //perform different operations depending on state of the car
   switch (state) {
+    
     //startup state
     case 0: {
       //checkReadings();
@@ -351,8 +382,7 @@ void loop() {
         digitalWrite(RELAY2, HIGH);
         delay(100);
         //digitalWrite(RELAY3, HIGH);
-        //delay(50);
-        delay(1000);
+        //delay(1000);
         digitalWrite(LVRELAY, HIGH);
         //play happy buzzer noise
         digitalWrite(BUZZER, HIGH);
@@ -370,7 +400,8 @@ void loop() {
         Can.begin(1000);
         CanBufferInit();
         cycleTime = millis();
-      //}
+      }
+      checkOffSwitch();
     }
     break;
       
@@ -379,54 +410,41 @@ void loop() {
       Serial.println("Normal state");
       int timelapse;
       //recieve CAN messages for 1 second
-      if(initial) {
+      if(initial) { //on startup allow a leeway of 10 seconds to recieve heartbeats from other boards
         timelapse = 10000;
         initial = false;
       } else {
-        timelapse = 1000;
+        timelapse = 1000; //otherwise, require a heartbeat each second
       }
-      while ((millis() - cycleTime) <= timelapse) {
+      while ((millis() - cycleTime) <= timelapse) { //main mode of operation.   Monitor CAN messages
+        if (millis()-cycleTime < 0 ){ 
+          cycleTime=millis();//in case our timer maxes out, we'll need to restart timer
+        }        
+        checkOffSwitch();
         //recieve CAN messages (heartbeats/error messages)
         //Serial.println("Is this working");
         recieveCAN();
         //error detected
         if (state == 3) {
           break;
-          Serial.println("Error in recieveCAN");
+          //Serial.println("Error in recieveCAN");
         }
-        if (digitalRead(IO_T1) == HIGH) { //check for OFF switch
-          state = 2;
-          Serial.print("Normal Shutdown\n");
+        if (state == 2) {
+          break;
+          Serial.println("Normal Shutdown");
         }
-        //shut off buzzer/LED if no longer sending warning
-        if (millis() > warningTime && !playingSong) {
-          digitalWrite(LEDFAIL, LOW);
-          digitalWrite(BUZZER, LOW);
-        }
-        //play some tunes
-        if (playingSong && endOfNote < millis()) {
-          int noteDuration = 1000/duration[currentNote];
-          tone(BUZZER, notes[currentNote], noteDuration);
-          int pause = noteDuration * 1.30;
-          endOfNote = millis() + pause;
-          currentNote++;
-          if (currentNote >= size) {
-            playingSong = false;
-            digitalWrite(BUZZER, LOW);
-          }
-        }
+        playSongs(); //updates buzzer sounds
       }
       if (state == 3) {
-        Serial.print("Emergency Shutdown\n");
+        //Serial.print("Emergency Shutdown\n");
         break;
       }
-      if (state == 2) { //normal shutdown initiated
-        Serial.print("Normal Shutdown\n");
+      if (state==2){ //continue normal shutdown
         break;
       }
 
       //play tetris
-      if (digitalRead(IO_T2) == LOW && !playingSong) { //will need to attach a button to input to play these songs
+      if (digitalRead(IO_T2) == LOW && !playingSong) {
         playingSong = true;
         duration = tetrisDuration;
         notes = tetrisNotes;
@@ -484,7 +502,7 @@ void loop() {
       
     //normal state -> shutdown
     case 2: {
-      Serial.println("Off State");
+      Serial.println("Off State- powering down");
       msg = CanMessage();
       msg.id = 0x521;
       msg.len = 0;
@@ -495,21 +513,32 @@ void loop() {
       digitalWrite(RELAY3, LOW);
       digitalWrite(LVRELAY, LOW);
       delay(20000);
+      state=0;  //allow to restart car if powered by USB
     }
     break; 
       
     //error state -> shutdown
     case 3: {
-      Serial.println("Error state");
-      digitalWrite(LEDFAIL, HIGH);
-      digitalWrite(BUZZER, HIGH);
+      while (1){
+      
       //turn off relays
       digitalWrite(RELAY1, LOW);
       digitalWrite(RELAY2, LOW);
       digitalWrite(RELAY3, LOW);
       digitalWrite(LVRELAY, LOW);
+      digitalWrite(LEDFAIL, HIGH);
+      digitalWrite(BUZZER, HIGH);
+      Serial.println("Error state- powering down");
       Serial.println(shutdownReason);
-      delay(20000);
+            
+      playingSong = true;
+      duration = badRomanceDuration;
+      notes = badRomanceNotes;
+      size = badRomanceSize;
+      currentNote = 0;
+      playSongs();
+      }
+      
     }
     break;
   }
