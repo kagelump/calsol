@@ -63,7 +63,7 @@ void tone(uint8_t _pin, unsigned int frequency, unsigned long duration);
 //reads voltage from first voltage source (millivolts)
 long readV1() {
   long reading = analogRead(V1);
-  long voltage = reading * 5 * 1000 / 1023 ;  
+  long voltage = reading * 2.56 * 1000 / 1023 ;  //scale to internal voltage reference 2.56V
   voltage = voltage * (270+11) / 11; // 2.7M+110K / 110K
   return voltage ;
 }
@@ -71,7 +71,7 @@ long readV1() {
 //reads voltage from second voltage source (milliVolts)
 long readV2() {
   long reading = analogRead(V2);
-  long voltage = reading * 5 * 1000 / 1023 ;  
+  long voltage = reading * 2.56 * 1000 / 1023 ;  
   voltage = voltage * (270+11) / 11; // 2.7M / 110K
   return voltage; 
 }
@@ -82,9 +82,9 @@ long readC1() {
   //Serial.println(cRead);
   long gndRead = analogRead(CGND);
   //Serial.println(gndRead);
-  long c1 = cRead * 5 * 1000 / 1023;
-  long cGND = gndRead * 5 * 1000 / 1023;
-  long current = 40 * (c1 - cGND);
+  long vdiff = (cRead-gndRead) * 2560 / 1023; //scale measured value to voltage difference at pins in millivolts.
+  long current = vdiff *1000 / 25; //convert voltage difference to current measured.   Scaled across 25 ohm resistor with 1:1000 winding ratio.
+  //Serial.println(current);
   return current;
 }
 
@@ -92,8 +92,8 @@ long readC1() {
 long readC2() {
   long cRead = analogRead(C2);
   long gndRead = analogRead(CGND);
-  long c1 = cRead * 5 * 1000 / 1023;
-  long cGND = gndRead * 5 * 1000 / 1023;
+  long c1 = cRead * 2.56 * 1000 / 1023;
+  long cGND = gndRead * 2.56 * 1000 / 1023;
   long current = 40 * (c1 - cGND);
   //Serial.print("C2: ");
   //Serial.print(current, DEC);
@@ -111,16 +111,17 @@ void checkReadings() {
   long overvoltage = 140000; //140,000 mV
   long overcurrent1 = 60000; //60,000 mA
   long overcurrent2 = 15000; //15,000 mA
-  if (batteryV <= undervoltage) {
-    strcpy(shutdownReason ,"undervoltage");
-    state = 3;
-    msg.id = 0x022;
-    msg.len = 1;
-    msg.data[0] = 0x02;
-    Can.send(msg);
-  }
-  else if (batteryV >= overvoltage || motorV >= overvoltage) {
-    strcpy(shutdownReason , "overvoltage");
+  //if (batteryV <= undervoltage) {
+  //  strcpy(shutdownReason ,"battery system undervoltage");
+  //  state = 3;
+  //  msg.id = 0x022;
+  //  msg.len = 1;
+  //  msg.data[0] = 0x02;
+  //  Can.send(msg);
+  //}
+  //else
+  if (batteryV >= overvoltage || motorV >= overvoltage) {
+    strcpy(shutdownReason , "battery system overvoltage");
     state = 3;
     msg.id = 0x022;
     msg.len = 1;
@@ -128,7 +129,7 @@ void checkReadings() {
     Can.send(msg);
   }
   else if (batteryC >= overcurrent1 || otherC >= overcurrent2) {
-    strcpy(shutdownReason , "overcurrent");
+    strcpy(shutdownReason , "system overcurrent");
     state = 3;
     msg.id = 0x022;
     msg.len = 1;
@@ -317,6 +318,7 @@ void setup() {
   //start in precharge state
   state = 0;
   Serial.begin(115200);
+  analogReference(INTERNAL);
 }
 
 char checkOffSwitch(){
@@ -356,13 +358,13 @@ void loop() {
     
     //startup state
     case 0: {
-      //checkReadings();
-      if (state == 3) {
+      checkReadings();
+      checkOffSwitch();
+      if (state == 2) {
         break;
       }
       long prechargeV = (readV1() / 1000.0); //milliVolts -> Volts
-      int prechargeTarget = 80; //~100V ?
-      
+      int prechargeTarget = 65; //~100V ?      
       if (prechargeV < prechargeTarget) { //wait for precharge
         Serial.print("Motor Voltage: ");
         Serial.print(prechargeV, DEC);
@@ -370,7 +372,6 @@ void loop() {
         delay(50);
       }
       else {
-        
         Serial.print("Precharge Voltage Reached\n");
         //advance to next state
         state = 1;
@@ -407,7 +408,7 @@ void loop() {
       
     //normal operation state
     case 1: {
-      Serial.println("Normal state");
+      //Serial.println("Normal state");
       int timelapse;
       //recieve CAN messages for 1 second
       if(initial) { //on startup allow a leeway of 10 seconds to recieve heartbeats from other boards
@@ -459,7 +460,7 @@ void loop() {
         size = badRomanceSize;
         currentNote = 0;
       }
-      //checkReadings();
+      checkReadings();
       sendReadings();
       //check critical board heartbeats
       if (!(batteryHB)) { // && motorHB && mpptHB)) {
@@ -536,7 +537,9 @@ void loop() {
       notes = badRomanceNotes;
       size = badRomanceSize;
       currentNote = 0;
-      playSongs();
+      while (1){
+        playSongs();
+      }
       }
       
     }
