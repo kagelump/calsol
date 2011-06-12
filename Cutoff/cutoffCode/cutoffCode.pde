@@ -364,6 +364,7 @@ void loop() {
       int prechargeTarget = 80; //~100V ?
       
       if (prechargeV < prechargeTarget) { //wait for precharge
+        prechargeV = readV1() / 1000.0;
         Serial.print("Motor Voltage: ");
         Serial.print(prechargeV, DEC);
         Serial.print("V\n");
