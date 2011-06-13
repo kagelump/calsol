@@ -398,7 +398,12 @@ void loop() {
         delay(100);
         digitalWrite(BUZZER, LOW);
         //begin looking for CAN messages
-        Can.begin(1000);
+        Can.reset();
+        Can.filterOn();
+        Can.setFilter(1, 0x020, 1);
+        Can.setMask(1, 0x7F0);
+        Can.setMask(2, 0x000);
+        Can.begin(1000, false);
         CanBufferInit();
         cycleTime = millis();
       }
