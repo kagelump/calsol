@@ -401,6 +401,7 @@ void loop() {
         Can.reset();
         Can.filterOn();
         Can.setFilter(1, 0x020, 1);
+        Can.setFilter(1, 0x040, 2);
         Can.setMask(1, 0x7F0);
         Can.setMask(2, 0x000);
         Can.begin(1000, false);
@@ -518,8 +519,9 @@ void loop() {
       digitalWrite(RELAY2, LOW);
       digitalWrite(RELAY3, LOW);
       digitalWrite(LVRELAY, LOW);
-      delay(20000);
-      state=0;  //allow to restart car if powered by USB
+      if (checkOffSwitch==0){ //if key is no longer in the off position allow for car to restart
+        state=0;  //allow to restart car if powered by USB
+      }
     }
     break; 
       
