@@ -42,8 +42,8 @@ int maxBuffer =0;
 enum cutoffState {STARTUP, NORMAL, TURNOFF, ERROR};
 cutoffState state; //0=startup 1=normal 2=turnoff 3=error
 
-long cycleTime; //used for operation cycle in normal state
-long warningTime; //play buzzer/keep LED on until this time is reached
+unsigned long cycleTime; //used for operation cycle in normal state
+unsigned long warningTime; //play buzzer/keep LED on until this time is reached
 int shortWarning = 100; //play buzzer for a short duration
 int longWarning = 500; //play buzzer for slightly longer duration
 //music stuff
@@ -588,6 +588,7 @@ void loop() {
         digitalWrite(LVRELAY, LOW);
         if (checkOffSwitch()==0){ //if key is no longer in the off position allow for car to restart
           state=STARTUP;  //allow to restart car if powered by USB
+          initial=1;
           break;
         }
       }
