@@ -33,8 +33,16 @@ char shutdownReason[50];
 #define IO_T3     0   //SONG 2 (Bad Romance)
 #define IO_T4    31   //Analog 0
 
+
+/*CAN*/
 CanMessage msg;
-int state; //0=startup 1=normal 2=turnoff 3=error
+int canCount =0; //track total number of messages read to get average buffer size
+int canChecks =0; 
+int maxBuffer =0;
+
+enum cutoffState {STARTUP, NORMAL, TURNOFF, ERROR};
+cutoffState state; //0=startup 1=normal 2=turnoff 3=error
+
 long cycleTime; //used for operation cycle in normal state
 long warningTime; //play buzzer/keep LED on until this time is reached
 int shortWarning = 100; //play buzzer for a short duration
@@ -60,11 +68,21 @@ boolean initial = true; //Initial state
 
 void tone(uint8_t _pin, unsigned int frequency, unsigned long duration);
 
+void CANReport(){
+ int Bufferavg=canCount/canChecks;
+  Serial.print("Max CAN buffer size (30Max): ");
+  Serial.print(maxBuffer);
+  Serial.print("Average CAN buffer size (30Max): ");
+  Serial.print(Bufferavg);
+  Serial.print("/n");
+}
+
 //reads voltage from first voltage source (millivolts)
 long readV1() {
   long reading = analogRead(V1);
   long voltage = reading * 5 * 1000 / 1023 ;  
-  voltage = voltage * (270+11) / 11; // 2.7M+110K / 110K
+  voltage = voltage * (270+11+47) / 11; // 2.7M+110K / 110K   voltage divider
+                                        // 2.7M+110K +470K/ 110K Because a fuse kept blowing We also added in another resistor to limit the current (470K).
   return voltage ;
 }
 
@@ -72,7 +90,8 @@ long readV1() {
 long readV2() {
   long reading = analogRead(V2);
   long voltage = reading * 5 * 1000 / 1023 ;  
-  voltage = voltage * (270+11) / 11; // 2.7M / 110K
+  voltage = voltage * (270+11+47) / 11; // 2.7M+110K / 110K   voltage divider
+                                        // 2.7M+110K +470K/ 110K Because a fuse kept blowing We also added in another resistor to limit the current (470K).
   return voltage; 
 }
 
@@ -113,7 +132,7 @@ void checkReadings() {
   long overcurrent2 = 15000; //15,000 mA
   if (batteryV <= undervoltage) {
     strcpy(shutdownReason ,"undervoltage");
-    state = 3;
+    state = ERROR;
     msg.id = 0x022;
     msg.len = 1;
     msg.data[0] = 0x02;
@@ -121,7 +140,7 @@ void checkReadings() {
   }
   else if (batteryV >= overvoltage || motorV >= overvoltage) {
     strcpy(shutdownReason , "overvoltage");
-    state = 3;
+    state = ERROR;
     msg.id = 0x022;
     msg.len = 1;
     msg.data[0] = 0x01;
@@ -129,7 +148,7 @@ void checkReadings() {
   }
   else if (batteryC >= overcurrent1 || otherC >= overcurrent2) {
     strcpy(shutdownReason , "overcurrent");
-    state = 3;
+    state = ERROR;
     msg.id = 0x022;
     msg.len = 1;
     msg.data[0] = 0x04;
@@ -163,7 +182,13 @@ void sendReadings() {
 
 //read and act on CAN messages
 void recieveCAN() {
-  if (CanBufferSize() == 0) {
+  int BufferSize = CanBufferSize();  //see how many messages are in our CAN mailbox
+  canCount += BufferSize; //keep track of total number of CAN messages
+  canChecks ++; //keep track of number of times we checked CAN messages
+  if (BufferSize > maxBuffer){ //check to see if this is our record number of messages.
+     maxBuffer=BufferSize; 
+  }
+  if (BufferSize == 0) {
     //Serial.println("Empty CAN");
     return;
   }
@@ -182,7 +207,7 @@ void recieveCAN() {
     case 0x021: //battery emergency
       //Serial.print("BPS Emergency Message");
       strcpy(shutdownReason , "BPSEmergency");
-      state = 3;
+      state = ERROR;
       msg = CanMessage();
       msg.id = 0x022;
       msg.len = 1;
@@ -226,7 +251,7 @@ void recieveCAN() {
       if (msg.data[0] == 0x04) {
         //Serial.print("BPS Critical Board Error\n");
         strcpy(shutdownReason , "BPS Critical Board Error");
-        state = 3;
+        state = ERROR;
         msg = CanMessage();
         msg.id = 0x022;
         msg.len = 1;
@@ -315,14 +340,14 @@ void setup() {
   pinMode(V2, INPUT);
   digitalWrite(V2, HIGH);
   //start in precharge state
-  state = 0;
+  state = STARTUP;
   Serial.begin(115200);
 }
 
 char checkOffSwitch(){
       //normal shutdown initiated
       if (digitalRead(IO_T1) == HIGH) {
-        state = 2;
+        state = TURNOFF;
         Serial.print("Normal Shutdown\n");
         return 1;
       }
@@ -355,13 +380,13 @@ void loop() {
   switch (state) {
     
     //startup state
-    case 0: {
+    case STARTUP: {
       //checkReadings();
-      if (state == 3) {
+      if (state == ERROR) {
         break;
       }
       long prechargeV = (readV1() / 1000.0); //milliVolts -> Volts
-      int prechargeTarget = 80; //~100V ?
+      int prechargeTarget = 100; //~100V ?
       
       if (prechargeV < prechargeTarget) { //wait for precharge
         prechargeV = readV1() / 1000.0;
@@ -372,9 +397,10 @@ void loop() {
       }
       else {
         
-        Serial.print("Precharge Voltage Reached\n");
+        Serial.print("Precharge Voltage Reached: ");
+        Serial.println(prechargeV);
         //advance to next state
-        state = 1;
+        state = NORMAL;
         //turn on relays
         //DO NOT TURN ALL RELAYS ON AT ONCE
         //ADD A DELAY TO AVOID MASSIVE CURRENT SPIKE
@@ -413,8 +439,8 @@ void loop() {
     break;
       
     //normal operation state
-    case 1: {
-      Serial.println("Normal state");
+    case NORMAL: {
+      //Serial.println("Normal state");
       int timelapse;
       //recieve CAN messages for 1 second
       if(initial) { //on startup allow a leeway of 10 seconds to recieve heartbeats from other boards
@@ -432,21 +458,21 @@ void loop() {
         //Serial.println("Is this working");
         recieveCAN();
         //error detected
-        if (state == 3) {
+        if (state == ERROR) {
           break;
           //Serial.println("Error in recieveCAN");
         }
-        if (state == 2) {
+        if (state == TURNOFF) {
           break;
           Serial.println("Normal Shutdown");
         }
         playSongs(); //updates buzzer sounds
       }
-      if (state == 3) {
+      if (state == ERROR) {
         //Serial.print("Emergency Shutdown\n");
         break;
       }
-      if (state==2){ //continue normal shutdown
+      if (state==TURNOFF){ //continue normal shutdown
         break;
       }
 
@@ -472,7 +498,7 @@ void loop() {
       if (!(batteryHB)) { // && motorHB && mpptHB)) {
         //Serial.print("Critical Heartbeat Undetected\n");
         strcpy(shutdownReason , "Missing Critical Heartbeat");
-        state = 3;
+        state = ERROR;
         msg.id = 0x022;
         msg.len = 1;
         msg.data[0] = 0x10;
@@ -508,28 +534,30 @@ void loop() {
     break;
       
     //normal state -> shutdown
-    case 2: {
+    case TURNOFF: {
       Serial.println("Off State- powering down");
       msg = CanMessage();
       msg.id = 0x521;
       msg.len = 0;
       Can.send(msg);
+      CANReport();
       //turn off relays
-      digitalWrite(RELAY1, LOW);
-      digitalWrite(RELAY2, LOW);
-      digitalWrite(RELAY3, LOW);
-      digitalWrite(LVRELAY, LOW);
-      if (checkOffSwitch==0){ //if key is no longer in the off position allow for car to restart
-        state=0;  //allow to restart car if powered by USB
+      while (1){
+        digitalWrite(RELAY1, LOW);
+        digitalWrite(RELAY2, LOW);
+        digitalWrite(RELAY3, LOW);
+        digitalWrite(LVRELAY, LOW);
+        if (checkOffSwitch==0){ //if key is no longer in the off position allow for car to restart
+          state=STARTUP;  //allow to restart car if powered by USB
+          break;
+        }
       }
     }
     break; 
       
     //error state -> shutdown
-    case 3: {
-      while (1){
-      
-      //turn off relays
+    case ERROR: {
+      //turn off relays first
       digitalWrite(RELAY1, LOW);
       digitalWrite(RELAY2, LOW);
       digitalWrite(RELAY3, LOW);
@@ -538,13 +566,23 @@ void loop() {
       digitalWrite(BUZZER, HIGH);
       Serial.println("Error state- powering down");
       Serial.println(shutdownReason);
-            
+      CANReport();      
+      
       playingSong = true;
       duration = badRomanceDuration;
       notes = badRomanceNotes;
       size = badRomanceSize;
       currentNote = 0;
-      playSongs();
+      
+      while (1){ //if a critical error occurs, the car cannot be reset without restarting the BRAIN
+            //turn off relays
+        digitalWrite(RELAY1, LOW);
+        digitalWrite(RELAY2, LOW);
+        digitalWrite(RELAY3, LOW);
+        digitalWrite(LVRELAY, LOW);
+        digitalWrite(LEDFAIL, HIGH);
+        digitalWrite(BUZZER, HIGH);  
+        playSongs();
       }
       
     }
