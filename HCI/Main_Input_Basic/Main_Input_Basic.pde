@@ -29,7 +29,7 @@ void setup() {
   
   // Send Motor power command to Tritium
   two_floats packet;
-  packet.f[1] = 1.0;  // 100% of bus power
+  packet.f[1] = 0.5;  // 50% of bus power
   Can.send(CanMessage(0x402, packet.c));
 }
 
@@ -38,13 +38,20 @@ void loop() {
     last_time = millis();
     // Get pedal position (0 - 1023).  fAccel is 0.0 - 1.0
     int accel = analogRead(ACCEL_ANALOGIN);
-    float fAccel = (float) accel / 1023.0;
+    float fAccel = ((float) accel / 1023.0) - 0.2;
     
     // Prepare and send Can Message. 0 is velocity, 1 is power.
-    Serial.println(fAccel);
     two_floats packet;
-    packet.f[0] = 100.0;  // Velocity in meter/sec
-    packet.f[1] = fAccel;  // Power in percentage
+    if (fAccel < 0) {
+      packet.f[0] = 0.0;  // Velocity, 0 m/s
+      packet.f[1] = -fAccel; // Power in %
+    } else {
+      packet.f[0] = 100.0;  // Velocity in meter/sec
+      packet.f[1] = fAccel;  // Power in percentage
+    }
+    Serial.print(packet.f[0]);
+    Serial.print("\t");
+    Serial.println(packet.f[1]);
     CanMessage msg = CanMessage(0x401, packet.c);
     Can.send(msg);
   }
