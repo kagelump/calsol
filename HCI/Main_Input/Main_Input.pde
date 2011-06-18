@@ -202,6 +202,7 @@ void accel(){
   brakeOn = false;
   if(accel < ACCEL_THRESHOLD) {
     setspeed = 0.0;
+    voltage = 0.0;
     return;
   }
   if(!digitalRead(VEHICLE_REV)) {
@@ -510,10 +511,10 @@ CanMessage sendMotorControl() {
   outputMsg.id = TritiumMotor;
   outputMsg.len = 8;
   floatEncoder(outputMsg,setspeed,voltage);
-  Serial.print("speed =");
-  Serial.println(setspeed);
-  Serial.print("voltage =");
-  Serial.println(voltage);
+//  Serial.print("speed =");
+//  Serial.println(setspeed);
+//  Serial.print("voltage =");
+//  Serial.println(voltage);
   return outputMsg;
 }
 void floatEncoder(CanMessage &msg,float spd, float v) {
