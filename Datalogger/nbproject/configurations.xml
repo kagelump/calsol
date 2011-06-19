@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="62">
+  <logicalFolder name="root" displayName="root" projectFiles="true">
+    <logicalFolder name="HeaderFiles"
+                   displayName="Header Files"
+                   projectFiles="true">
+      <logicalFolder name="f2" displayName="ECAN" projectFiles="true">
+        <itemPath>ecan.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f6" displayName="FAT32" projectFiles="true">
+        <itemPath>fat32-debug.h</itemPath>
+        <itemPath>fat32-file-opt.h</itemPath>
+        <itemPath>fat32-file.h</itemPath>
+        <itemPath>fat32.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f5" displayName="I2C Devices" projectFiles="true">
+        <itemPath>i2c-phy.h</itemPath>
+        <itemPath>mcp23017.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f4" displayName="Misc Libraries" projectFiles="true">
+        <itemPath>timer.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f3" displayName="SD-SPI" projectFiles="true">
+        <itemPath>sd-spi-cmd.h</itemPath>
+        <itemPath>sd-spi-dma.h</itemPath>
+        <itemPath>sd-spi-phy.h</itemPath>
+        <itemPath>sd-spi.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f1" displayName="UART" projectFiles="true">
+        <itemPath>uart-dma.h</itemPath>
+        <itemPath>uart.h</itemPath>
+        <itemPath>uartansi.h</itemPath>
+        <itemPath>uartstring.h</itemPath>
+      </logicalFolder>
+      <itemPath>datalogger-debug.h</itemPath>
+      <itemPath>hardware.h</itemPath>
+      <itemPath>types.h</itemPath>
+    </logicalFolder>
+    <logicalFolder name="LibraryFiles"
+                   displayName="Library Files"
+                   projectFiles="true">
+    </logicalFolder>
+    <logicalFolder name="LinkerScript"
+                   displayName="Linker Files"
+                   projectFiles="true">
+    </logicalFolder>
+    <logicalFolder name="ObjectFiles"
+                   displayName="Object Files"
+                   projectFiles="true">
+    </logicalFolder>
+    <logicalFolder name="SourceFiles"
+                   displayName="Source Files"
+                   projectFiles="true">
+      <logicalFolder name="f2" displayName="ECAN" projectFiles="true">
+        <itemPath>ecan.c</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f6" displayName="FAT32" projectFiles="true">
+        <itemPath>fat32-file-opt.c</itemPath>
+        <itemPath>fat32-file.c</itemPath>
+        <itemPath>fat32.c</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f5" displayName="I2C Devices" projectFiles="true">
+        <itemPath>i2c-phy.c</itemPath>
+        <itemPath>mcp23017.c</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f4" displayName="Misc Libraries" projectFiles="true">
+        <itemPath>timer.c</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f3" displayName="SD-SPI" projectFiles="true">
+        <itemPath>sd-spi-cmd.c</itemPath>
+        <itemPath>sd-spi-debug.c</itemPath>
+        <itemPath>sd-spi-dma.c</itemPath>
+        <itemPath>sd-spi-phy.c</itemPath>
+        <itemPath>sd-spi.c</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f1" displayName="UART" projectFiles="true">
+        <itemPath>uart-dma.c</itemPath>
+        <itemPath>uart.c</itemPath>
+        <itemPath>uartansi.c</itemPath>
+        <itemPath>uartstring.c</itemPath>
+      </logicalFolder>
+      <itemPath>debug-common.c</itemPath>
+      <itemPath>main.c</itemPath>
+    </logicalFolder>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false">
+      <itemPath>docs/Documentation.docx</itemPath>
+      <itemPath>docs/Documentation.pdf</itemPath>
+      <itemPath>docs/IOC Goals.docx</itemPath>
+      <itemPath>docs/IOC Goals.pdf</itemPath>
+      <itemPath>Makefile</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <projectmakefile>Makefile</projectmakefile>
+  <confs>
+    <conf name="default" type="2">
+      <toolsSet>
+        <developmentServer>localhost</developmentServer>
+        <targetDevice>dsPIC33FJ128MC802</targetDevice>
+        <targetHeader></targetHeader>
+        <platformTool>PICkit2PlatformTool</platformTool>
+        <languageToolchain>C30</languageToolchain>
+        <languageToolchainVersion></languageToolchainVersion>
+        <platform>3</platform>
+      </toolsSet>
+      <compileType>
+        <linkerTool>
+          <linkerLibItems>
+          </linkerLibItems>
+        </linkerTool>
+      </compileType>
+      <C30>
+        <property key="scalar-model" value="default"/>
+        <property key="extra-include-directories" value=""/>
+        <property key="preprocessor-macros" value=""/>
+        <property key="data-model" value="default"/>
+        <property key="enable-all-warnings" value="false"/>
+        <property key="pre-instruction-scheduling" value="default"/>
+        <property key="enable-short-double" value="true"/>
+        <property key="enable-ansi-warnings" value="false"/>
+        <property key="optimization-level" value="1"/>
+        <property key="enable-procedural-abstraction" value="false"/>
+        <property key="enable-fatal-warnings" value="false"/>
+        <property key="post-instruction-scheduling" value="default"/>
+        <property key="enable-omit-frame-pointer" value="false"/>
+        <property key="enable-ansi-std" value="false"/>
+        <property key="enable-unroll-loops" value="false"/>
+        <property key="const-model" value="default"/>
+        <property key="code-model" value="default"/>
+      </C30>
+      <C30-AS>
+        <property key="omit-debug-dirs" value="false"/>
+        <property key="extra-include-directories-for-assembler" value=""/>
+        <property key="preprocessor-macros" value=""/>
+        <property key="list-file" value=""/>
+        <property key="list-source" value="false"/>
+        <property key="list-assembly" value="false"/>
+        <property key="relax" value="false"/>
+        <property key="warning-level" value="emit-warnings"/>
+        <property key="extra-include-directories-for-preprocessor" value=""/>
+        <property key="list-section-info" value="false"/>
+        <property key="omit-forms" value="false"/>
+        <property key="list-symbols" value="false"/>
+        <property key="keep-locals" value="false"/>
+        <property key="false-conditionals" value="false"/>
+        <property key="expand-macros" value="false"/>
+        <property key="assembler-symbols" value=""/>
+      </C30-AS>
+      <C30-LD>
+        <property key="preprocessor-macros" value=""/>
+        <property key="general-code-protect" value="no_code_protect"/>
+        <property key="secure-write-protect" value="no_write_protect"/>
+        <property key="warn-section-align" value="false"/>
+        <property key="heap-size" value="1024"/>
+        <property key="stack-size" value="1024"/>
+        <property key="linker-symbols" value=""/>
+        <property key="trace-symbols" value=""/>
+        <property key="map-file" value=""/>
+        <property key="enable-pack-data" value="true"/>
+        <property key="boot-eeprom" value="no_eeprom"/>
+        <property key="general-write-protect" value="no_write_protect"/>
+        <property key="enable-handles" value="true"/>
+        <property key="enable-data-init" value="true"/>
+        <property key="secure-flash" value="no_flash"/>
+        <property key="generate-cross-reference-file" value="false"/>
+        <property key="report-memory-usage" value="false"/>
+        <property key="boot-write-protect" value="no_write_protect"/>
+        <property key="boot-flash" value="no_flash"/>
+        <property key="input-libraries" value=""/>
+        <property key="secure-ram" value="no_ram"/>
+        <property key="enable-check-sections" value="true"/>
+        <property key="enable-default-isr" value="true"/>
+        <property key="symbol-stripping" value="keep-all"/>
+        <property key="boot-ram" value="no_ram"/>
+        <property key="extra-lib-directories" value=""/>
+        <property key="secure-eeprom" value="no_eeprom"/>
+      </C30-LD>
+      <C30Global>
+      </C30Global>
+      <PICkit2PlatformTool>
+        <property key="pk2settings.userpgmexec" value="true"/>
+        <property key="pk2settings.setvddvoltage" value="3.25"/>
+        <property key="pk2settings.3state" value="false"/>
+        <property key="pk2settings.preserveee" value="false"/>
+        <property key="pk2settings.usetargetpower" value="true"/>
+      </PICkit2PlatformTool>
+      <item path="ecan.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="fat32.c" ex="false" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="fat32.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="hardware.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="i2c-phy.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="mcp23017.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="sd-spi-cmd.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="sd-spi-dma.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="sd-spi-phy.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="sd-spi.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="timer.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="types.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="uart.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="uartansi.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+      <item path="uartstring.h" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AS>
+        </C30-AS>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
+    </conf>
+  </confs>
+</configurationDescriptor>
