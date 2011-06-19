@@ -109,7 +109,7 @@ void loop() {
   receiveCAN();
   setInputs();
   accel();
-  cruiseControl(); // cruise control overrides measurements made by accel
+ // cruiseControl(); // cruise control overrides measurements made by accel
   COMToOthers();
   if (!digitalRead(HAZ_SWITCH)) {
     turnSignals(true,true);
@@ -121,11 +121,13 @@ void loop() {
      turnSignals(rightSet, leftSet); 
   }
   km = digitalRead(speedUnitToggle);
+  digitalWrite(speedUnitLED, km);
   if (km)
     displayNum (recordedSpeed*3.6); //currently km/hr
   else
     displayNum(recordedSpeed*2.2369); // 1 m/s = 2.2369 mph
-  cruiseControl();  
+  //cruiseControl();  
+ // testButtons();
 }
 
 /*******************************
@@ -202,7 +204,7 @@ void accel(){
   brakeOn = false;
   if(accel < ACCEL_THRESHOLD) {
     setspeed = 0.0;
-    voltage = 0.0;
+  //  voltage = 0.0;
     return;
   }
   if(!digitalRead(VEHICLE_REV)) {
@@ -262,6 +264,7 @@ void cruiseSetMode() {
  *   where it can _possibly_ be true. 
  */
 void toggleCruise() {
+
 //  Serial.println("cruise activated");
    cruise_active = !cruise_active; 
 }
@@ -511,10 +514,10 @@ CanMessage sendMotorControl() {
   outputMsg.id = TritiumMotor;
   outputMsg.len = 8;
   floatEncoder(outputMsg,setspeed,voltage);
-//  Serial.print("speed =");
-//  Serial.println(setspeed);
-//  Serial.print("voltage =");
-//  Serial.println(voltage);
+  Serial.print("speed =");
+  Serial.println(setspeed);
+  Serial.print("voltage =");
+  Serial.println(voltage);
   return outputMsg;
 }
 void floatEncoder(CanMessage &msg,float spd, float v) {
