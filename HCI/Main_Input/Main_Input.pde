@@ -1,7 +1,7 @@
 //Now called Main Input Board
 
 //recent change: added !digitalRead to accel() code to read VEHICLE_FWD and VEHICLE_REV correctly
-boolean debug = false;
+boolean debug = true;
 
 #define LATCH_PIN   2	//Pin attatched to St_CP
 #define CLOCK_PIN   1 	//pin attatched to SH_CP 
@@ -16,14 +16,14 @@ boolean debug = false;
 #define HORN_BUTTON 11
 #define speedUnitLED 12
 #define speedUnitToggle 13 //switched from SHOW_ID_BUTTON
-#define VEHICLE_COAST 14
+#define VEHICLE_COAST 20
 #define LTURN_SWITCH 18
 #define RTURN_SWITCH 17
 #define LTURN_INDICATOR 24
 #define RTURN_INDICATOR 23
-#define VEHICLE_FWD 21 
-#define VEHICLE_STOP 20
-#define VEHICLE_REV 19 
+#define VEHICLE_FWD 19 
+#define VEHICLE_STOP 14
+#define VEHICLE_REV 21
 #define DEBUG 22
 
 /* 
@@ -59,7 +59,7 @@ char inputMessage[8] = {0,0,0,0,0,0,0,0}; //this will transfer out inputs over
 char motorMessage[8] = {0,0,0,0,0,0,0,0};
 float setspeed = 0.0;
 float cruiseSpeed = 0.0;
-float recordedSpeed = 10.0;
+float recordedSpeed = 15.0;
 float voltage = 1.0;
 boolean km = true;
 //cruisemode defines
@@ -102,14 +102,15 @@ void setup() {
   init.len = 8;
   floatEncoder(init,1.0,1.0);
   Can.send(init);
-  pinMode(15, OUTPUT);
+
 }
 
 void loop() {
-  receiveCAN();
+ 
+    receiveCAN();
   setInputs();
   accel();
- // cruiseControl(); // cruise control overrides measurements made by accel
+  cruiseControl(); // cruise control overrides measurements made by accel
   COMToOthers();
   if (!digitalRead(HAZ_SWITCH)) {
     turnSignals(true,true);
@@ -126,7 +127,7 @@ void loop() {
     displayNum (recordedSpeed*3.6); //currently km/hr
   else
     displayNum(recordedSpeed*2.2369); // 1 m/s = 2.2369 mph
-  //cruiseControl();  
+ 
  // testButtons();
 }
 
@@ -185,8 +186,9 @@ void accel(){
   }
   if(cruise_active){
     if(brake > BRAKE_THRESHOLD) {
+      cruiseCancel();
     } else{
-      return;
+       return;
     }
   }
   if(brake > BRAKE_THRESHOLD) {
@@ -204,7 +206,7 @@ void accel(){
   brakeOn = false;
   if(accel < ACCEL_THRESHOLD) {
     setspeed = 0.0;
-  //  voltage = 0.0;
+    voltage = 0.0;
     return;
   }
   if(!digitalRead(VEHICLE_REV)) {
@@ -212,7 +214,8 @@ void accel(){
     setspeed = -100.0;
     voltage = accel/1023.0;
     return;
-  }    
+  }  
+cruiseCancel();  
   setspeed = 100.0;
   voltage = accel/1023.0;
   return;
@@ -234,9 +237,10 @@ void cruiseSetMode() {
   // where rval represents the speed of the car
   if (cruise_active && (recordedSpeed < minimum_cruise_speed || brakeOn)) {
     cruiseCancel(5);
+    return;
   }
   // Read the state of the cruise switch
-  int state = digitalRead(CRUISE_SET);
+  int state = !digitalRead(CRUISE_SET);
   /* 
    * If the button is being pressed, and enough time has elapsed since the last time we've
    *   pressed the button, then toggle the cruise mode. (This may set it to true OR false.)
@@ -282,7 +286,7 @@ void cruiseSet() {
  */
 void maintainSpeed(){
   setspeed = cruise_speed;
-  voltage = 1.0;
+  voltage = 0.5;
   
 }
 /* Cancels cruise. This also resets the firstSet variable. */
@@ -329,7 +333,7 @@ increase/decrease speed (cruiseSetSpeed)
 void cruiseControl() {
   digitalWrite (CRUISE_IND, cruise_active);
   cruiseSetMode();
-  cruiseSetSpeed();
+  cruiseSetSpeed(); 
 }
 
 /********************************************
@@ -514,10 +518,12 @@ CanMessage sendMotorControl() {
   outputMsg.id = TritiumMotor;
   outputMsg.len = 8;
   floatEncoder(outputMsg,setspeed,voltage);
+  if(debug){
   Serial.print("speed =");
   Serial.println(setspeed);
   Serial.print("voltage =");
   Serial.println(voltage);
+  }
   return outputMsg;
 }
 void floatEncoder(CanMessage &msg,float spd, float v) {
