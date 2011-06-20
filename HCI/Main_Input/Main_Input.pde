@@ -1,7 +1,7 @@
 //Now called Main Input Board
 
 //recent change: added !digitalRead to accel() code to read VEHICLE_FWD and VEHICLE_REV correctly
-boolean debug = true;
+boolean debug = false;
 
 #define LATCH_PIN   2	//Pin attatched to St_CP
 #define CLOCK_PIN   1 	//pin attatched to SH_CP 
@@ -198,7 +198,7 @@ void accel(){
     return;
   }
   if(!digitalRead(VEHICLE_COAST)) {
-    cruiseCancel(3);
+    cruiseCancel();
     setspeed = 0;
     voltage = 0.0;
     return;
@@ -210,7 +210,7 @@ void accel(){
     return;
   }
   if(!digitalRead(VEHICLE_REV)) {
-    cruiseCancel(4);
+    cruiseCancel();
     setspeed = -100.0;
     voltage = accel/1023.0;
     return;
@@ -235,7 +235,7 @@ void cruiseSetMode() {
    *   maintainable by the car, or the brake is being pressed, cancel cruise.
    */
   // where rval represents the speed of the car
-  if (cruise_active && (recordedSpeed < minimum_cruise_speed || brakeOn)) {
+  if (cruise_active && (recordedSpeed < minimum_cruise_speed || brakeOn||digitalRead(VEHICLE_FWD))) {
     cruiseCancel(5);
     return;
   }
@@ -245,7 +245,7 @@ void cruiseSetMode() {
    * If the button is being pressed, and enough time has elapsed since the last time we've
    *   pressed the button, then toggle the cruise mode. (This may set it to true OR false.)
    */
-  if (state == LOW && millis() - millis_since_cruise_toggle > minimum_millis_change_delay) {
+  if (!digitalRead(VEHICLE_FWD)&&state == LOW && millis() - millis_since_cruise_toggle > minimum_millis_change_delay) {
     toggleCruise();
     // voltage to 1, set speed to whatever you want
     // Update the number of milliseconds since we've pressed the button.
