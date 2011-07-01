@@ -1,0 +1,22 @@
+Chase Car:
+set wlan join 1
+set wlan ssid sol_calibear
+set wlan chan 1
+set ip dhcp 0
+set ip address 169.254.1.2
+set ip netmask 255.255.0.0
+set ip host 169.254.1.1
+set ip remote 31415
+set sys autoconn 10
+set comm remote *I_AM_KEYMASTER*
+
+
+Solar Vehicle:
+set wlan join 4
+set wlan ssid sol_calibear
+set wlan chan 1
+set ip dhcp 0
+set ip address 169.254.1.1
+set ip netmask 255.255.0.0
+set ip localport 31415
+set comm remote *I_AM_GATEKEEPER*
