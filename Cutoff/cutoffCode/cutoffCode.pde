@@ -84,7 +84,7 @@ void CANReport(){
 long readV1() {
   long reading = analogRead(V1);
   long voltage = reading * 5 * 1000 / 1023 ;  
-  voltage = voltage * (270+10.8+47) / 10.8; // 2.7M+110K / 110K   voltage divider
+  voltage = voltage * (270+10.8) / 10.8; // 2.7M+110K / 110K   voltage divider
                                         // 2.7M+110K +470K/ 110K Because a fuse kept blowing We also added in another resistor to limit the current (470K).
   return voltage ;
 }
@@ -93,7 +93,7 @@ long readV1() {
 long readV2() {
   long reading = analogRead(V2);
   long voltage = reading * 5 * 1000 / 1023 ;  
-  voltage = voltage * (270+10.8+47) / 10.8; // 2.7M+110K / 110K   voltage divider
+  voltage = voltage * (270+10.8) / 10.8; // 2.7M+110K / 110K   voltage divider
                                         // 2.7M+110K +470K/ 110K Because a fuse kept blowing We also added in another resistor to limit the current (470K).
   return voltage; 
 }
