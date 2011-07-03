@@ -17,6 +17,7 @@ volatile long last_heart_driver_io = 0;
 volatile long last_heart_driver_ctl = 0;
 volatile long last_heart_telemetry = 0;
 volatile long last_heart_datalogger = 0;
+volatile long last_heart_cutoff = 0;
 volatile long last_can = 0;
 volatile int emergency = 0;
 volatile int warning = 0;
@@ -35,7 +36,7 @@ long readV1() {
   long voltage = reading * 5 * 1000 / 1023 ;  
   // 2.7M+110K +470K/ 110K Because a fuse kept blowing We also added
   // in another resistor to limit the current (470K).
-  voltage = voltage * (270+10.8+47) / 10.8; // 2.7M+110K / 110K   voltage divider
+  voltage = voltage * (270+10.8) / 10.8; // 2.7M+110K / 110K   voltage divider
   return voltage ;
 }
 
@@ -45,7 +46,7 @@ long readV2() {
   long voltage = reading * 5 * 1000 / 1023 ;  
   // 2.7M+110K +470K/ 110K Because a fuse kept blowing We also added
   // in another resistor to limit the current (470K).
-  voltage = voltage * (270+10.8+47) / 10.8; // 2.7M+110K / 110K   voltage divider
+  voltage = voltage * (270+10.8) / 10.8; // 2.7M+110K / 110K   voltage divider
   return voltage; 
 }
 
@@ -81,6 +82,18 @@ void sendReadings() {
   long v2 = readV2();
   long c1 = readC1();
   long c2 = readC2();
+  
+  #ifdef DEBUG_MEASUREMENTS
+      Serial.print(" V1: ");
+      Serial.print(v1);
+      Serial.print(" V2: ");
+      Serial.print(v2);
+      Serial.print(" C1: ");
+      Serial.print(C1);
+      Serial.print(" C2: ");
+      Serial.println(C2);      
+  #endif
+  
   msg.id = CAN_CUTOFF_VOLT_CURR;
   msg.len = 8;
   msg.data[0] = v1 & 0x00FF;
@@ -105,6 +118,7 @@ void sendHeartbeat() {
 /* Does the precharge routine: Wait for motor voltage to reach a threshold,
  * then turns the car to the on state by switching on both relays */
 void do_precharge() {
+  last_heart_bps = 0; //reset heartbeat tracking
   long prechargeV = (readV1() / 1000.0); //milliVolts -> Volts
   long batteryV = (readV2() / 1000.0); //milliVolts -> Volts
   int prechargeTarget = 100; //~100V ?
@@ -113,7 +127,7 @@ void do_precharge() {
   if ( digitalRead(IO_T1) ) {
     /* Off switch engaged, Transition to off */
     state = TURNOFF;
-  } else if ( prechargeV < prechargeTarget ) {
+  } else if ( prechargeV < prechargeTarget ) { //should replace with voltageDiff (compare battery and motor voltage)
     /* Precharge incomplete */
     #ifdef DEBUG
       Serial.print("Precharge State -- Motor Voltage: ");
@@ -232,7 +246,7 @@ void do_error() {
   digitalWrite(RELAY3, LOW);
   digitalWrite(LVRELAY, LOW);
   digitalWrite(LEDFAIL, HIGH);
-  digitalWrite(BUZZER, HIGH);
+  digitalWrite(BUZZER, HIGH); //If you simply do this, the buzzer will not shut off.
   /* Trap the code execution here on error */
   while (1) {
     digitalWrite(RELAY1, LOW);

@@ -5,12 +5,13 @@
  */
 
 #define DEBUG_CAN
+#define DEBUG_MEASUREMENTS
 #define DEBUG
+#define 
 #include "cutoffHelper.h"
 #include "cutoffCanID.h"
 #include "cutoffPindef.h"
 
-long last_time = 0;
 
 void process_packet(CanMessage &msg) {
   last_can = millis();
@@ -70,16 +71,13 @@ void setup() {
 }
 
 void loop() {
-  if (millis() - last_time > 100) {
-    // Perform state fuctions and update state
-    last_time = millis();
+  // Perform state fuctions and update state
     switch (state) {
       case PRECHARGE:
         do_precharge();
         break;
       case NORMAL:
-        do_normal();
-        sendReadings();  // Send system voltage and current readings
+        do_normal();        
         break;
       case TURNOFF:
         do_turnoff();
@@ -89,15 +87,21 @@ void loop() {
         break;
       default:
         #ifdef DEBUG
-          Serial.println("Defaulted to error state");
+          Serial.println("Defaulted to error state.   There must be a coding issue.");
         #endif
         do_error();
         break;
     }
+  if (millis() - last_heart_bps > 200) {  //Send out the cutoff heartbeat to anyone listening.  
+    last_heart_bps = millis();
     #ifdef DEBUG_CAN
       Serial.print("last_heart_bps: ");
       Serial.println(last_heart_bps);
     #endif
     sendHeartbeat();
+  }
+  if (millis()-last_readings > 103){  // Send out system voltage and current measurements
+                                      //chose a weird number so it wouldn't always match up with the heartbeat timing    
+    sendReadings();
   }
 }
