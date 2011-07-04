@@ -48,6 +48,7 @@ void writeConfig(byte*config,byte board) {
   SPI.transfer(WRCFG); //configuration is written to all chips
   for(int i=0;i<6;i++) {
     SPI.transfer(config[i]);
+    
   }
   END 
 }
@@ -165,6 +166,8 @@ boolean checkOverVoltage(float*voltages,float limit,int length) {
 boolean checkUnderVoltage(float*voltages,float limit,int length) {
   for(int i=0;i<length;i++) {
     if(voltages[i] <= limit) {
+      Serial.print("Index: ");
+      Serial.println(i);
       return true;
     }
   }
@@ -285,12 +288,18 @@ void loop() {
       }
     }
     if(checkUnderVoltage(cv,2.8,length)) {
+        Serial.println("Warning: Undervoltage cells");
+        Serial.print("Pack: ");
+        Serial.println(k);
+      
       if(checkUnderVoltage(cv,under,length)) {
         char underchg[1] = { 0x02 };
         sendCAN(0x021,underchg,1);
         error = true;
         delay(10);
-        Serial.println("Undervoltage cells");
+        Serial.println("Critical Undervoltage cells");
+        Serial.print("Pack: ");
+        Serial.println(k);
         delay(30000);
       } else {
           warning = true;
