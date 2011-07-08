@@ -102,6 +102,17 @@ int tetrisNotes[] = {
   NOTE_E4, NOTE_E4, NOTE_C4, NOTE_E4, NOTE_D4, NOTE_C4,
   NOTE_B3, NOTE_B3, NOTE_C4, NOTE_D4, NOTE_E4,
   NOTE_C4, NOTE_A3, NOTE_A3};
+
+int beepDuration[] = {
+ 4, 8, 4 
+};
+
+int beepNotes[] = {
+ NOTE_E4, NOTE_B3, NOTE_C4
+}; 
+
+
+int beepSize = 3;
   
 int tetrisDuration[] = {
   4, 8, 8, 4, 8, 8,

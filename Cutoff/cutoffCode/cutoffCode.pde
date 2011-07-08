@@ -42,6 +42,7 @@ int maxBuffer =0;
 enum cutoffState {STARTUP, NORMAL, TURNOFF, ERROR};
 cutoffState state; //0=startup 1=normal 2=turnoff 3=error
 
+unsigned long startTime;
 unsigned long cycleTime; //used for operation cycle in normal state
 unsigned long warningTime; //play buzzer/keep LED on until this time is reached
 int shortWarning = 100; //play buzzer for a short duration
@@ -241,6 +242,9 @@ void recieveCAN() {
     //Heartbeats
     case 0x041: //bps heartbeat
       batteryHB = true;
+      if (initial){
+       beepBeep();//beep first time receiving heartbeat. 
+      }
       if (msg.data[0] == 0x01) {
         //Serial.print("BPS Warning\n");
         digitalWrite(BUZZER, HIGH);
@@ -348,6 +352,7 @@ void setup() {
   digitalWrite(V2, HIGH);
   //start in precharge state
   state = STARTUP;
+  startTime=millis();
   Serial.begin(115200);
 }
 
@@ -379,6 +384,17 @@ void playSongs(){
             digitalWrite(BUZZER, LOW);
           }
         }
+}
+
+void beepBeep(){
+       //play beep sounds
+      if (!playingSong) {
+        playingSong = true;
+        duration = beepDuration;
+        notes = beepNotes;
+        size = beepSize;
+        currentNote = 0;
+      } 
 }
 
 void loadTetris(){
@@ -422,7 +438,8 @@ void loop() {
       int prechargeTarget = 100; //~100V ?
       int voltageDiff= abs(prechargeV-batteryV);
       
-      if ((prechargeV < prechargeTarget)  ) { //wait for precharge to bring motor voltage up to battery voltage  
+      if ((prechargeV < prechargeTarget)  || (voltageDiff>3) 
+      || (millis()-startTime < 1000)) { //wait for precharge to bring motor voltage up to battery voltage  
                                                 //  || (voltageDiff>3)
         prechargeV = readV1() / 1000.0;
         Serial.print("Precharge State -- Motor Voltage: ");
@@ -589,6 +606,7 @@ void loop() {
         if (checkOffSwitch()==0){ //if key is no longer in the off position allow for car to restart
           state=STARTUP;  //allow to restart car if powered by USB
           initial=1;
+          startTime=millis();
           break;
         }
       }
@@ -608,11 +626,13 @@ void loop() {
       Serial.println(shutdownReason);
       CANReport();      
       
-      playingSong = true;
-      duration = badRomanceDuration;
-      notes = badRomanceNotes;
-      size = badRomanceSize;
-      currentNote = 0;
+      
+      if (strcmp(shutdownReason,"Missing Critical Heartbeat")==0){
+        loadBadRomance();
+      }
+      else{
+        loadTetris(); 
+      }
       
       while (1){ //if a critical error occurs, the car cannot be reset without restarting the BRAIN
             //turn off relays
