@@ -28,7 +28,7 @@ void process_packet(CanMessage &msg) {
     case CAN_EMER_DRIVER_CTL:
       emergency = 1;
       break;  
-    case CAN_EMER_DRIVER_TELEMETRY:
+    case CAN_EMER_TELEMETRY:
       emergency = 1;
       break;      
     case CAN_EMER_OTHER1:
@@ -118,3 +118,4 @@ void loop() {
   #endif
     
 }
+

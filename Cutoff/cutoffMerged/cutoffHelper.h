@@ -8,6 +8,7 @@
 #ifndef _CUTOFF_HELPER_H_
 #define _CUTOFF_HELPER_H_ 
 #include <WProgram.h>
+#include "pitches.h"
 #include "cutoffCanID.h"
 #include "cutoffPindef.h"
 
@@ -33,8 +34,8 @@ enum STATES {
 } state;
 
 enum SHUTDOWNREASONS {
-  NORMAL,
-  HEARTBEAT,
+  KEY_OFF,
+  BPS_HEARTBEAT,
   S_UNDERVOLT,
   S_OVERVOLT,
   S_OVERCURRENT,
@@ -45,6 +46,21 @@ enum SHUTDOWNREASONS {
   OTHER_EMERGENCY,
   BPS_ERROR //redundant?  
 } shutdownReason;
+
+
+/*Buzzer and Music */
+unsigned long warningTime = 0; //play buzzer/keep LED on until this time is reached
+int shortWarning = 100; //play buzzer for a short duration
+int longWarning = 500; //play buzzer for slightly longer duration
+
+boolean playingSong = false;
+int* duration;
+int* notes;
+int songSize;
+int currentNote=0;
+long endOfNote=0;
+
+void process_packet(CanMessage &msg);
 
 void initCAN(){
    /* Can Initialization w/ filters */
@@ -58,6 +74,52 @@ void initCAN(){
   Can.begin(1000, false);
   CanBufferInit(); 
 }
+
+void tone(uint8_t _pin, unsigned int frequency, unsigned long duration);
+
+void playSongs(){
+//shut off buzzer/LED if no longer sending warning
+        if (millis() > warningTime && !playingSong) {
+          digitalWrite(LEDFAIL, LOW);
+          digitalWrite(BUZZER, LOW);
+        }
+        //play some tunes
+        if (playingSong && endOfNote < millis()) {
+          int noteDuration = 1000/duration[currentNote];
+          tone(BUZZER, notes[currentNote], noteDuration);
+          int pause = noteDuration * 1.30;
+          endOfNote = millis() + pause;
+          currentNote++;
+          if (currentNote >= songSize) {
+            playingSong = false;
+            digitalWrite(BUZZER, LOW);
+          }
+        }
+}
+
+//play tetris
+void loadTetris(){     
+      if (!playingSong) {
+        playingSong = true;
+        duration = tetrisDuration;
+        notes = tetrisNotes;
+        songSize = tetrisSize;
+        currentNote = 0;
+      } 
+}
+
+//play BadRomance
+void loadBadRomance(){
+      //play bad romance
+      if (!playingSong) {
+        playingSong = true;
+        duration = badRomanceDuration;
+        notes = badRomanceNotes;
+        songSize = badRomanceSize;
+        currentNote = 0;
+      }
+}
+
 
 //reads voltage from first voltage source (millivolts)
 long readV1() {
@@ -109,7 +171,7 @@ long readC2() {
 char checkOffSwitch(){      
       if (digitalRead(IO_T1) == HIGH) {//normal shutdown initiated
         state = TURNOFF;
-        shutdownReason=NORMAL;
+        shutdownReason=KEY_OFF;
         return 1;
       }
       return 0;
@@ -226,24 +288,24 @@ void do_normal() {
   CanMessage msg = CanMessage();
   if ( emergency ) {
     /* We received an critical error packet, set car to ERROR state */
-    #ifdef DEBUG
-      Serial.print("Emergency packet received: ");
-      Serial.print(emergency);
-      Serial.print("\tBPS Code: ");
-      if (bps_code == 0x01)
-        Serial.println("Overvolt Error");
-      else if (bps_code == 0x02)
-        Serial.println("Undervolt Error");
-      else if (bps_code == 0x04)
-        Serial.println("Overtemp Error");
-      else
-        Serial.println(bps_code & 0xFF, HEX);
-    #endif
+    //#ifdef DEBUG
+    //  Serial.print("Emergency packet received: ");
+    //  Serial.print(emergency);
+    //  Serial.print("\tBPS Code: ");
+    //  if (bps_code == 0x01)
+    //    Serial.println("Overvolt Error");
+    //  else if (bps_code == 0x02)
+    //    Serial.println("Undervolt Error");
+    //  else if (bps_code == 0x04)
+    //    Serial.println("Overtemp Error");
+    //  else
+    //    Serial.println(bps_code & 0xFF, HEX);
+    //#endif
     state = ERROR;
-    msg.id = 0x022;
-    msg.len = 1;
-    msg.data[0] = 0x08;
-    Can.send(msg);
+    //msg.id = CAN_EMER_CUTOFF;
+    //msg.len = 1;
+    //msg.data[0] = 0x08;
+    //Can.send(msg);
   } else if ( digitalRead(IO_T1) ) {
     #ifdef DEBUG
       Serial.println("Switch off. Normal -> Turnoff");
@@ -290,6 +352,15 @@ void do_error() {
   digitalWrite(LVRELAY, LOW);
   digitalWrite(LEDFAIL, HIGH);
   digitalWrite(BUZZER, HIGH); //If you simply do this, the buzzer will not shut off.
+  
+  
+  if (shutdownReason==BPS_HEARTBEAT){
+    loadBadRomance();
+  }
+  else{
+    loadTetris(); 
+  }
+  
   /* Trap the code execution here on error */
   while (1) {
     digitalWrite(RELAY1, LOW);
@@ -297,6 +368,8 @@ void do_error() {
     digitalWrite(RELAY3, LOW);
     digitalWrite(LVRELAY, LOW);
     digitalWrite(LEDFAIL, HIGH); 
+    playSongs();
   }
 }
+
 #endif
