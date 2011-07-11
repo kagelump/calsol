@@ -32,6 +32,33 @@ enum STATES {
   ERROR
 } state;
 
+enum SHUTDOWNREASONS {
+  NORMAL,
+  HEARTBEAT,
+  S_UNDERVOLT,
+  S_OVERVOLT,
+  S_OVERCURRENT,
+  BPS_EMERGENCY, //redundant?
+  IO_EMERGENCY,
+  CONTROLS_EMERGENCY,
+  TELEMETRY_EMERGENCY,
+  OTHER_EMERGENCY,
+  BPS_ERROR //redundant?  
+} shutdownReason;
+
+void initCAN(){
+   /* Can Initialization w/ filters */
+  Can.reset();
+  Can.filterOn();
+  Can.setFilter(1, 0x020, 1);
+  Can.setFilter(1, 0x040, 2);
+  Can.setMask(1, 0x7F0);
+  Can.setMask(2, 0x000);
+  Can.attach(&process_packet);
+  Can.begin(1000, false);
+  CanBufferInit(); 
+}
+
 //reads voltage from first voltage source (millivolts)
 long readV1() {
   long reading = analogRead(V1);
@@ -75,6 +102,17 @@ long readC2() {
   //Serial.print(current, DEC);
   //Serial.print("mA\n");
   return current;
+}
+
+
+/* Turn of car if Off Switch is triggered */
+char checkOffSwitch(){      
+      if (digitalRead(IO_T1) == HIGH) {//normal shutdown initiated
+        state = TURNOFF;
+        shutdownReason=NORMAL;
+        return 1;
+      }
+      return 0;
 }
 
 /* Send system voltage/current over CAN */

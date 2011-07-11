@@ -14,8 +14,34 @@
 
 void process_packet(CanMessage &msg) {
   last_can = millis();
-  switch(msg.id) {
+  switch(msg.id) {     
     /* Add cases for each CAN message ID to be received*/
+    
+    /* Emergencies */
+    case CAN_EMER_BPS:
+      bps_code = msg.data[0];
+      emergency = 1;
+      break; 
+    case CAN_EMER_DRIVER_IO:
+      emergency = 1;
+      break;
+    case CAN_EMER_DRIVER_CTL:
+      emergency = 1;
+      break;  
+    case CAN_EMER_DRIVER_TELEMETRY:
+      emergency = 1;
+      break;      
+    case CAN_EMER_OTHER1:
+      emergency = 1;
+      break;
+    case CAN_EMER_OTHER2:
+      emergency = 1;
+      break;
+    case CAN_EMER_OTHER3:
+      emergency = 1;
+      break;
+      
+    /* Heartbeats */
     case CAN_HEART_BPS:
       last_heart_bps = millis();
       bps_code = msg.data[0];
@@ -41,9 +67,6 @@ void process_packet(CanMessage &msg) {
     case CAN_HEART_DATALOGGER:
       last_heart_datalogger = millis();
       break;
-    case CAN_EMER_BPS:
-      bps_code = msg.data[0];;
-      emergency = 1;
     default:
       break;
   }
@@ -53,18 +76,7 @@ void setup() {
   /* General init */
   initPins();
   Serial.begin(115200);
-  
-  /* Can Initialization w/ filters */
-  Can.reset();
-  Can.filterOn();
-  Can.setFilter(1, 0x020, 1);
-  Can.setFilter(1, 0x040, 2);
-  Can.setMask(1, 0x7F0);
-  Can.setMask(2, 0x000);
-  Can.attach(&process_packet);
-  Can.begin(1000, false);
-  CanBufferInit();
-  
+  initCAN();  
   /* Precharge */
   state = PRECHARGE;
 }
