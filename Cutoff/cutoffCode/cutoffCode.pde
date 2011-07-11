@@ -42,18 +42,20 @@ int maxBuffer =0;
 enum cutoffState {STARTUP, NORMAL, TURNOFF, ERROR};
 cutoffState state; //0=startup 1=normal 2=turnoff 3=error
 
-unsigned long startTime;
-unsigned long cycleTime; //used for operation cycle in normal state
-unsigned long warningTime; //play buzzer/keep LED on until this time is reached
+unsigned long startTime = 0;
+unsigned long cycleTime = 0; //used for operation cycle in normal state
+unsigned long warningTime = 0; //play buzzer/keep LED on until this time is reached
 int shortWarning = 100; //play buzzer for a short duration
 int longWarning = 500; //play buzzer for slightly longer duration
 //music stuff
 boolean playingSong = false;
 int* duration;
 int* notes;
-int size;
-int currentNote;
-long endOfNote;
+int songSize;
+int currentNote=0;
+long endOfNote=0;
+
+int timelapse; //amount of time between heartbeats
 
 boolean boardFail = false;
 //heartbeat checks
@@ -242,8 +244,8 @@ void recieveCAN() {
     //Heartbeats
     case 0x041: //bps heartbeat
       batteryHB = true;
-      if (initial){
-       beepBeep();//beep first time receiving heartbeat. 
+      if (timelapse==10000){ //way to check if we've recieved heartbeat
+       digitalWrite(LED2, HIGH);//beep first time receiving heartbeat. 
       }
       if (msg.data[0] == 0x01) {
         //Serial.print("BPS Warning\n");
@@ -322,9 +324,9 @@ void recieveCAN() {
 
 /* ---------------------------------------------------------- */
 
-//set output pins
-void setup() {
-  //initialize pinouts
+void initialize(){
+  
+  //initialize pins
   pinMode(BUZZER, OUTPUT);
   digitalWrite(BUZZER, LOW);
   pinMode(RELAY1, OUTPUT);
@@ -333,7 +335,9 @@ void setup() {
   pinMode(LVRELAY, OUTPUT);
   pinMode(LEDFAIL, OUTPUT);
   pinMode(LED1, OUTPUT);
-  pinMode(LED2, OUTPUT);
+  digitalWrite(LED1,LOW); 
+  pinMode(LED2, OUTPUT);  
+  digitalWrite(LED2,LOW); 
   pinMode(IO_T1, INPUT); //OFF SWITCH
   digitalWrite(IO_T1, HIGH);
   pinMode(IO_T2, INPUT); //Song 1
@@ -345,15 +349,31 @@ void setup() {
   pinMode(IO_B2, OUTPUT);
   pinMode(IO_B3, OUTPUT);
   pinMode(IO_B4, OUTPUT);
-  
   pinMode(V1, INPUT);
   digitalWrite(V1, HIGH);
   pinMode(V2, INPUT);
   digitalWrite(V2, HIGH);
+  
+  //initialize variables
+  initial = true;
+  boolean boardFail = false;
+  //heartbeat checks
+  batteryHB = false;
+  motorHB = false;
+  mpptHB = false;
+  telemetryHB = false;
+  ioHB = false;
+  controlsHB = false;
+  dataloggerHB = false;
   //start in precharge state
   state = STARTUP;
   startTime=millis();
-  Serial.begin(115200);
+}
+
+//set output pins
+void setup() {  
+  initialize(); //create a second function in case we want to reinitiallize later     
+  Serial.begin(115200);  //begin serial communications.  We only want to do this once or we may disconnect
 }
 
 char checkOffSwitch(){
@@ -379,23 +399,13 @@ void playSongs(){
           int pause = noteDuration * 1.30;
           endOfNote = millis() + pause;
           currentNote++;
-          if (currentNote >= size) {
+          if (currentNote >= songSize) {
             playingSong = false;
             digitalWrite(BUZZER, LOW);
           }
         }
 }
 
-void beepBeep(){
-       //play beep sounds
-      if (!playingSong) {
-        playingSong = true;
-        duration = beepDuration;
-        notes = beepNotes;
-        size = beepSize;
-        currentNote = 0;
-      } 
-}
 
 void loadTetris(){
        //play tetris
@@ -403,7 +413,7 @@ void loadTetris(){
         playingSong = true;
         duration = tetrisDuration;
         notes = tetrisNotes;
-        size = tetrisSize;
+        songSize = tetrisSize;
         currentNote = 0;
       } 
 }
@@ -414,10 +424,12 @@ void loadBadRomance(){
         playingSong = true;
         duration = badRomanceDuration;
         notes = badRomanceNotes;
-        size = badRomanceSize;
+        songSize = badRomanceSize;
         currentNote = 0;
       }
 }
+
+
 
 //loop through operations
 void loop() {
@@ -433,6 +445,7 @@ void loop() {
       if (state == ERROR) {
         break;
       }
+      digitalWrite(LED1,HIGH);
       long prechargeV = (readV1() / 1000.0); //milliVolts -> Volts
       long batteryV = (readV2() / 1000.0); //milliVolts -> Volts
       int prechargeTarget = 100; //~100V ?
@@ -488,6 +501,7 @@ void loop() {
         Can.begin(1000, false);
         CanBufferInit();
         cycleTime = millis();
+        digitalWrite(LED1,LOW);
       }
       checkOffSwitch();
     }
@@ -496,7 +510,7 @@ void loop() {
     //normal operation state
     case NORMAL: {
       //Serial.println("Normal state");
-      int timelapse;
+      
       //recieve CAN messages for 1 second
       if(initial) { //on startup allow a leeway of 10 seconds to recieve heartbeats from other boards
         timelapse = 10000;
@@ -604,9 +618,8 @@ void loop() {
         digitalWrite(RELAY3, LOW);
         digitalWrite(LVRELAY, LOW);
         if (checkOffSwitch()==0){ //if key is no longer in the off position allow for car to restart
+          initialize(); //reinitialize all variables
           state=STARTUP;  //allow to restart car if powered by USB
-          initial=1;
-          startTime=millis();
           break;
         }
       }
@@ -625,6 +638,7 @@ void loop() {
       Serial.println("Error state- powering down");
       Serial.println(shutdownReason);
       CANReport();      
+      
       
       
       if (strcmp(shutdownReason,"Missing Critical Heartbeat")==0){
