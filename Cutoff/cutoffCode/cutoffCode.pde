@@ -379,9 +379,14 @@ void setup() {
 char checkOffSwitch(){
       //normal shutdown initiated
       if (digitalRead(IO_T1) == HIGH) {
-        state = TURNOFF;
-        //Serial.print("Normal Shutdown\n");
-        return 1;
+        //Serial.print("key in off position?\n");
+        delay(1); //
+        if (digitalRead(IO_T1) == HIGH) { //double check.  
+            //Had issues before when releasing key from precharge
+            state = TURNOFF;
+            //Serial.print("Normal Shutdown\n");
+            return 1;
+        }
       }
       return 0;
 }
