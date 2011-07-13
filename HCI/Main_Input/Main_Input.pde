@@ -16,13 +16,13 @@ boolean debug = false;
 #define HORN_BUTTON 11
 #define speedUnitLED 12
 #define speedUnitToggle 13 //switched from SHOW_ID_BUTTON
-#define VEHICLE_COAST 20
+#define VEHICLE_COAST 14
 #define LTURN_SWITCH 18
 #define RTURN_SWITCH 17
 #define LTURN_INDICATOR 24
 #define RTURN_INDICATOR 23
 #define VEHICLE_FWD 19 
-#define VEHICLE_STOP 14
+#define VEHICLE_STOP 20
 #define VEHICLE_REV 21
 #define DEBUG 22
 
@@ -39,8 +39,8 @@ boolean debug = false;
 #define ACCEL_PEDAL 27
 #define BRAKE_PEDAL 28
 
-#define ACCEL_THRESHOLD 10
-#define BRAKE_THRESHOLD 10
+#define ACCEL_THRESHOLD 90
+#define BRAKE_THRESHOLD 210
 //User-Defined Constants
 #define INTERVAL 500           // interval at which to blink (milliseconds)
 #define MAX_SPEED 100
@@ -110,7 +110,7 @@ void loop() {
     receiveCAN();
   setInputs();
   accel();
-  cruiseControl(); // cruise control overrides measurements made by accel
+ cruiseControl(); // cruise control overrides measurements made by accel
   COMToOthers();
   if (!digitalRead(HAZ_SWITCH)) {
     turnSignals(true,true);
@@ -176,7 +176,10 @@ int accelSamples = 1;
 
 void accel(){
   int accel = analogRead(ACCEL_PEDAL);
+  
   int brake = analogRead(BRAKE_PEDAL);
+  brake = 1023-brake;
+ 
   if(!digitalRead(VEHICLE_STOP)){
     cruiseCancel(1);
     brakeOn = false;
@@ -212,12 +215,12 @@ void accel(){
   if(!digitalRead(VEHICLE_REV)) {
     cruiseCancel();
     setspeed = -100.0;
-    voltage = accel/1023.0;
+    voltage = .4 * accel/1023.0;
     return;
   }  
 cruiseCancel();  
   setspeed = 100.0;
-  voltage = accel/1023.0;
+  voltage = .4 *  accel/1023.0;
   return;
 }
 /********************************************
