@@ -379,8 +379,8 @@ void setup() {
 char checkOffSwitch(){
       //normal shutdown initiated
       if (digitalRead(IO_T1) == HIGH) {
-        //Serial.print("key in off position?\n");
-        delay(1); //
+        Serial.print("key detected in off position\n");
+        delay(50); //
         if (digitalRead(IO_T1) == HIGH) { //double check.  
             //Had issues before when releasing key from precharge
             state = TURNOFF;
