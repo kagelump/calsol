@@ -27,7 +27,7 @@ const float under = 2.7;
 const int B = 3988;
 
 byte config[6] = { 0xE5,0x00,0x00,0x00,UV,OV }; //Default config
-int heartrate= 250; //send heartbeat every 250ms;
+int heartrate= 200; //send heartbeat every 200ms;
 unsigned long lastHeartbeat =0;
 unsigned long cycleTime =0;
 
@@ -228,7 +228,7 @@ void loop() {
     byte rconfig[6];
     readConfig(rconfig,boards[k]);
     if(rconfig[0]==0xFF || rconfig[0]==0x00 || rconfig[0]==0x02) {
-      //Serial.println("Board not communicating.");
+      Serial.println("Board not communicating.");
       error = true;
       continue;
     }
@@ -384,7 +384,8 @@ void loop() {
       char ok[1] = { 0x00 };
       sendCAN(0x041,ok,1);
       delay(10);
-      Serial.println("BPS operations OK");
+      Serial.print("BPS operations OK ");
+      Serial.println(millis());
     }
     lastHeartbeat=millis();
   }
