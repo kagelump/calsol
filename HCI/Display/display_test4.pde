@@ -1,3 +1,9 @@
+/* CalSol - UC Berkeley Solar Vehicle Team 
+ * display.pde - Dashboard Module
+ * Author(s): Michael Chang, Lily Lin
+ * Date: July 17th 2011
+ */
+
 const int FONT_5x7 = 0x00;
 const int FONT_8x8 = 0x01;
 const int FONT_8x12 = 0x02;
@@ -68,8 +74,8 @@ int endAngle = 220;
 int rad = 30;
 
 float measured_speed;
-long last_received = 0;
-long last_time = 0;
+volatile long last_received = 0;
+volatile long last_time = 0;
 // max values from CAN
 long max_bus_voltage = 100;
 long max_bus_current = 100;
@@ -80,35 +86,35 @@ long max_solar_current = 100;
 long max_battery_volt0 = 100;
 long max_battery_temp0 = 100;
 // values from CAN
-long bus_voltage = 0;
-long bus_current = 0;
-long tritium_last_received = 0;
-long solar_last_received = 0;
-long battery_last_received = 0;
-long motor_speed = 0;
-long tritium_speed = 0;
-long solar_voltage = 0;
-long solar_current = 0;
-long battery_volt0 = 0;
-long battery_temp0 = 0;
+volatile long bus_voltage = 0;
+volatile long bus_current = 0;
+volatile long tritium_last_received = 0;
+volatile long solar_last_received = 0;
+volatile long battery_last_received = 0;
+volatile long motor_speed = 0;
+volatile long tritium_speed = 0;
+volatile long solar_voltage = 0;
+volatile long solar_current = 0;
+volatile long battery_volt0 = 0;
+volatile long battery_temp0 = 0;
 
-int time = millis();
-int batt = 0;
-int solar = 0;
-int motor = 0;
-int battdif = 0;
-int solardif = 0;
-int motordif = 0;
-int cutoff = 0;
-int sys = 0;
-int temp = 0;
+volatile int time = millis();
+volatile int batt = 0;
+volatile int solar = 0;
+volatile int motor = 0;
+volatile int battdif = 0;
+volatile int solardif = 0;
+volatile int motordif = 0;
+volatile int cutoff = 0;
+volatile int sys = 0;
+volatile int temp = 0;
 
-int batteryok = NOTSET;
-int solarok = NOTSET;
-int motorok = NOTSET;
-int cutoffok = NOTSET;
-int systemok = NOTSET;
-int tempok = NOTSET;
+volatile int batteryok = NOTSET;
+volatile int solarok = NOTSET;
+volatile int motorok = NOTSET;
+volatile int cutoffok = NOTSET;
+volatile int systemok = NOTSET;
+volatile int tempok = NOTSET;
 
 char* INITIALSTAT = "Not Set";
 int   INITSTATCOL = blue;
@@ -124,8 +130,8 @@ typedef union {
 uint8_t display_readAck() {
   int i = 0;
   while (i < DISPLAY_CMD_TIMEOUT) {
-    if (Serial.available() > 0) {
-      uint8_t resp = Serial.read();
+    if (Serial1.available() > 0) {
+      uint8_t resp = Serial1.read();
       return resp;
     }
     i += DISPLAY_RESP_DELAY;
@@ -135,176 +141,176 @@ uint8_t display_readAck() {
 }
 
 void drawBlueBackground(){
-  Serial.write(0x42); //send command to change background color
-  Serial.write((unsigned char)0x0); //zero red, zero green, unsigned char cast needed for zero  because of dumb compiler issues
-  Serial.write(0x1f); //max blue value
+  Serial1.write(0x42); //send command to change background color
+  Serial1.write((unsigned char)0x0); //zero red, zero green, unsigned char cast needed for zero  because of dumb compiler issues
+  Serial1.write(0x1f); //max blue value
 }
 
 void drawLine(int xStartPos, int yStartPos, int xEndPos, int yEndPos, int color){
-  Serial.write(0x4c); //send command
+  Serial1.write(0x4c); //send command
   
-  Serial.write((unsigned char)(xStartPos >>8)&0xff); //send off xStartPos
-  Serial.write((unsigned char)xStartPos&0xff);
+  Serial1.write((unsigned char)(xStartPos >>8)&0xff); //send off xStartPos
+  Serial1.write((unsigned char)xStartPos&0xff);
   
-  Serial.write((unsigned char)(yStartPos >>8)&0xff); //send off xStartPos
-  Serial.write((unsigned char)yStartPos&0xff);
+  Serial1.write((unsigned char)(yStartPos >>8)&0xff); //send off xStartPos
+  Serial1.write((unsigned char)yStartPos&0xff);
   
-  Serial.write((unsigned char)(xEndPos >>8)&0xff); //send off xStartPos
-  Serial.write((unsigned char)xEndPos&0xff);
+  Serial1.write((unsigned char)(xEndPos >>8)&0xff); //send off xStartPos
+  Serial1.write((unsigned char)xEndPos&0xff);
   
-  Serial.write((unsigned char)(yEndPos >>8)&0xff); //send off xStartPos
-  Serial.write((unsigned char)yEndPos&0xff);
+  Serial1.write((unsigned char)(yEndPos >>8)&0xff); //send off xStartPos
+  Serial1.write((unsigned char)yEndPos&0xff);
   
-  Serial.write((unsigned char)(color>>8)&0xff);
-  Serial.write((unsigned char)color&0xff);
+  Serial1.write((unsigned char)(color>>8)&0xff);
+  Serial1.write((unsigned char)color&0xff);
 
   display_readAck();
 }
 
 void drawCircle(int xCoor, int yCoor, int radius, int color){
-  Serial.write(0x43);
+  Serial1.write(0x43);
   
-  Serial.write((unsigned char)(xCoor>>8)&0xff);
-  Serial.write((unsigned char)xCoor&0xff);
+  Serial1.write((unsigned char)(xCoor>>8)&0xff);
+  Serial1.write((unsigned char)xCoor&0xff);
   
-  Serial.write((unsigned char)(yCoor>>8)&0xff);
-  Serial.write((unsigned char)yCoor&0xff);
+  Serial1.write((unsigned char)(yCoor>>8)&0xff);
+  Serial1.write((unsigned char)yCoor&0xff);
   
-  Serial.write((unsigned char)(radius>>8)&0xff);
-  Serial.write((unsigned char)radius&0xff);
+  Serial1.write((unsigned char)(radius>>8)&0xff);
+  Serial1.write((unsigned char)radius&0xff);
   
-  Serial.write((unsigned char)(color>>8)&0xff);
-  Serial.write((unsigned char)color&0xff);
+  Serial1.write((unsigned char)(color>>8)&0xff);
+  Serial1.write((unsigned char)color&0xff);
 
   display_readAck();
 }
 
 void drawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, int color){
-  Serial.write(0x47);
+  Serial1.write(0x47);
   
-  Serial.write((unsigned char)(x1>>8)&0xff);
-  Serial.write((unsigned char)(x1&0xff));
+  Serial1.write((unsigned char)(x1>>8)&0xff);
+  Serial1.write((unsigned char)(x1&0xff));
   
-  Serial.write((unsigned char)(y1>>8)&0xff);
-  Serial.write((unsigned char)(y1&0xff));
+  Serial1.write((unsigned char)(y1>>8)&0xff);
+  Serial1.write((unsigned char)(y1&0xff));
   
-  Serial.write((unsigned char)(x2>>8)&0xff);
-  Serial.write((unsigned char)(x2&0xff));
+  Serial1.write((unsigned char)(x2>>8)&0xff);
+  Serial1.write((unsigned char)(x2&0xff));
   
-  Serial.write((unsigned char)(y2>>8)&0xff);
-  Serial.write((unsigned char)(y2&0xff));
+  Serial1.write((unsigned char)(y2>>8)&0xff);
+  Serial1.write((unsigned char)(y2&0xff));
   
-  Serial.write((unsigned char)(x3>>8)&0xff);
-  Serial.write((unsigned char)(x3&0xff));
+  Serial1.write((unsigned char)(x3>>8)&0xff);
+  Serial1.write((unsigned char)(x3&0xff));
   
-  Serial.write((unsigned char)(y3>>8)&0xff);
-  Serial.write((unsigned char)(y3&0xff));
+  Serial1.write((unsigned char)(y3>>8)&0xff);
+  Serial1.write((unsigned char)(y3&0xff));
   
-  Serial.write((unsigned char)(color>>8)&0xff);
-  Serial.write((unsigned char)color&0xff);
+  Serial1.write((unsigned char)(color>>8)&0xff);
+  Serial1.write((unsigned char)color&0xff);
 }
 
 void drawRect(int x1, int y1, int x2, int y2, int color){
-  Serial.write(0x72);
+  Serial1.write(0x72);
   
-  Serial.write((unsigned char)(x1>>8)&0xff);
-  Serial.write((unsigned char)x1&0xff);
+  Serial1.write((unsigned char)(x1>>8)&0xff);
+  Serial1.write((unsigned char)x1&0xff);
   
-  Serial.write((unsigned char)(y1>>8)&0xff);
-  Serial.write((unsigned char)y1&0xff);
+  Serial1.write((unsigned char)(y1>>8)&0xff);
+  Serial1.write((unsigned char)y1&0xff);
   
-  Serial.write((unsigned char)(x2>>8)&0xff);
-  Serial.write((unsigned char)x2&0xff);
+  Serial1.write((unsigned char)(x2>>8)&0xff);
+  Serial1.write((unsigned char)x2&0xff);
   
-  Serial.write((unsigned char)(y2>>8)&0xff);
-  Serial.write((unsigned char)y2&0xff);
+  Serial1.write((unsigned char)(y2>>8)&0xff);
+  Serial1.write((unsigned char)y2&0xff);
   
-  Serial.write((unsigned char)(color>>8)&0xff);
-  Serial.write((unsigned char)color&0xff);
+  Serial1.write((unsigned char)(color>>8)&0xff);
+  Serial1.write((unsigned char)color&0xff);
 
 }
 
 void drawEllipse(int x1, int y1, int xmaj, int ymin, int color){
-  Serial.write(0x72);
+  Serial1.write(0x72);
   
-  Serial.write((unsigned char)(x1>>8)&0xff);
-  Serial.write((unsigned char)x1&0xff);
+  Serial1.write((unsigned char)(x1>>8)&0xff);
+  Serial1.write((unsigned char)x1&0xff);
   
-  Serial.write((unsigned char)(y1>>8)&0xff);
-  Serial.write((unsigned char)y1&0xff);
+  Serial1.write((unsigned char)(y1>>8)&0xff);
+  Serial1.write((unsigned char)y1&0xff);
   
-  Serial.write((unsigned char)(xmaj>>8)&0xff);
-  Serial.write((unsigned char)xmaj&0xff);
+  Serial1.write((unsigned char)(xmaj>>8)&0xff);
+  Serial1.write((unsigned char)xmaj&0xff);
   
-  Serial.write((unsigned char)(ymin>>8)&0xff);
-  Serial.write((unsigned char)ymin&0xff);
+  Serial1.write((unsigned char)(ymin>>8)&0xff);
+  Serial1.write((unsigned char)ymin&0xff);
   
-  Serial.write((unsigned char)(color>>8)&0xff);
-  Serial.write((unsigned char)color&0xff);
+  Serial1.write((unsigned char)(color>>8)&0xff);
+  Serial1.write((unsigned char)color&0xff);
 
 }
 
 
 void drawASCII(int symb, int xCoor, int yCoor, int symbColor, int width, int height){
-  Serial.write(0x74);
+  Serial1.write(0x74);
   
-  Serial.write((unsigned char)symb);
+  Serial1.write((unsigned char)symb);
   
-  Serial.write((unsigned char)(xCoor>>8)&0xff);
-  Serial.write((unsigned char)(xCoor&0xff));
+  Serial1.write((unsigned char)(xCoor>>8)&0xff);
+  Serial1.write((unsigned char)(xCoor&0xff));
   
-  Serial.write((unsigned char)(yCoor>>8)&0xff);
-  Serial.write((unsigned char)(yCoor&0xff));
+  Serial1.write((unsigned char)(yCoor>>8)&0xff);
+  Serial1.write((unsigned char)(yCoor&0xff));
   
-  Serial.write((unsigned char)(symbColor>>8)&0xff);
-  Serial.write((unsigned char)(symbColor&0xff));
+  Serial1.write((unsigned char)(symbColor>>8)&0xff);
+  Serial1.write((unsigned char)(symbColor&0xff));
   
-  Serial.write(width);
-  Serial.write(height);
+  Serial1.write(width);
+  Serial1.write(height);
 }
 
 void drawString(int xCoor, int yCoor, int font, int stringColor, int width, int height, char* string) {
-  Serial.write(0x53);
+  Serial1.write(0x53);
   
-  Serial.write((unsigned char)(xCoor>>8)&0xff);
-  Serial.write((unsigned char)(xCoor&0xff));
+  Serial1.write((unsigned char)(xCoor>>8)&0xff);
+  Serial1.write((unsigned char)(xCoor&0xff));
   
-  Serial.write((unsigned char)(yCoor>>8)&0xff);
-  Serial.write((unsigned char)(yCoor&0xff));
+  Serial1.write((unsigned char)(yCoor>>8)&0xff);
+  Serial1.write((unsigned char)(yCoor&0xff));
   
-  Serial.write((unsigned char)font);
+  Serial1.write((unsigned char)font);
   
-  Serial.write((unsigned char)(stringColor>>8)&0xff);
-  Serial.write((unsigned char)(stringColor&0xff));
+  Serial1.write((unsigned char)(stringColor>>8)&0xff);
+  Serial1.write((unsigned char)(stringColor&0xff));
   
-  Serial.write((unsigned char)width);
-  Serial.write((unsigned char)height);
+  Serial1.write((unsigned char)width);
+  Serial1.write((unsigned char)height);
 
   while (*string != 0) {
-    Serial.write((unsigned char)*string);
+    Serial1.write((unsigned char)*string);
     string++;
   }
-  Serial.write((unsigned char)0x00);  // send terminator byte
+  Serial1.write((unsigned char)0x00);  // send terminator byte
   
   display_readAck();
 }
 
 void drawInteger(int xCoor, int yCoor, int font, int stringColor, int width, int height, int value) {
-  Serial.write(0x53);
+  Serial1.write(0x53);
   
-  Serial.write((unsigned char)(xCoor>>8)&0xff);
-  Serial.write((unsigned char)(xCoor&0xff));
+  Serial1.write((unsigned char)(xCoor>>8)&0xff);
+  Serial1.write((unsigned char)(xCoor&0xff));
   
-  Serial.write((unsigned char)(yCoor>>8)&0xff);
-  Serial.write((unsigned char)(yCoor&0xff));
+  Serial1.write((unsigned char)(yCoor>>8)&0xff);
+  Serial1.write((unsigned char)(yCoor&0xff));
   
-  Serial.write((unsigned char)font);
+  Serial1.write((unsigned char)font);
   
-  Serial.write((unsigned char)(stringColor>>8)&0xff);
-  Serial.write((unsigned char)(stringColor&0xff));
+  Serial1.write((unsigned char)(stringColor>>8)&0xff);
+  Serial1.write((unsigned char)(stringColor&0xff));
   
-  Serial.write((unsigned char)width);
-  Serial.write((unsigned char)height);
+  Serial1.write((unsigned char)width);
+  Serial1.write((unsigned char)height);
 
   // assumes that the maximum integer passed will be in the hundreds
   int number;
@@ -313,12 +319,12 @@ void drawInteger(int xCoor, int yCoor, int font, int stringColor, int width, int
   int tens = (number%100)/10;
   int ones = number%10;
   if (hundreds != 0) {
-    Serial.write((unsigned char)(hundreds+48));
+    Serial1.write((unsigned char)(hundreds+48));
   }
-  Serial.write((unsigned char)(tens+48));
-  Serial.write((unsigned char)(ones+48));  
+  Serial1.write((unsigned char)(tens+48));
+  Serial1.write((unsigned char)(ones+48));  
 
-  Serial.write((unsigned char)0x00);  // send terminator byte
+  Serial1.write((unsigned char)0x00);  // send terminator byte
   
   display_readAck();
 }
@@ -330,9 +336,9 @@ void drawInteger(int xCoor, int yCoor, int font, int stringColor, int width, int
  */
 
 void display_control(uint8_t mode, uint8_t value) {
-  Serial.write(DISPLAY_CMD_CONTROL);
-  Serial.write(mode);
-  Serial.write(value);
+  Serial1.write(DISPLAY_CMD_CONTROL);
+  Serial1.write(mode);
+  Serial1.write(value);
   
   display_readAck();
 }
@@ -341,7 +347,7 @@ void display_control(uint8_t mode, uint8_t value) {
  * Sends the Clear() command to the LCD.
  */
 void display_clear() {
-  Serial.write(DISPLAY_CMD_CLEAR);
+  Serial1.write(DISPLAY_CMD_CLEAR);
   
   display_readAck();
 }
@@ -349,18 +355,14 @@ void display_clear() {
 void display_initialize() {
   int cnt = 0;
   while (1) {
-    Serial.write(DISPLAY_CMD_AUTOBAUD);
+    Serial1.write(DISPLAY_CMD_AUTOBAUD);
     if (display_readAck() == DISPLAY_RESP_ACK) {
       return;
     }
   }
 }
 
-void itoa() {
-  char s[10];
-  
-  
-}
+
 
 void drawGaugeNeedle(int centerX, int centerY, int rad, int pct, int color) {
   int angle = endAngle - startAngle;
@@ -578,7 +580,7 @@ void checkSystemStatus() {
 // process_packet code, handle cases here
 /* Declare your state variables here */
 
-void process_packet(CanMessage msg) {
+void process_packet(CanMessage &msg) {
   switch(msg.id) {
     /* Add cases for each CAN message ID to be received*/
     case CAN_TRITIUM_BUS:
@@ -622,11 +624,11 @@ void setup(){
   digitalWrite(12,HIGH);
   
   /* Can Initialization w/o filters */
-//  Can.attach(&process_packet);     // won't compile right now
-  Can.begin(1000);
+  Can.attach(&process_packet);    
+  Can.begin(1000, false);
   CanBufferInit();
   
-  Serial.begin(9600);
+  Serial1.begin(9600);
 
   display_initialize();
 
@@ -637,6 +639,13 @@ void setup(){
 
   display_clear();
   
+  
+  bus_voltage = 50.0;
+  bus_current = 50.0;
+  battery_volt0 = 50.0;
+  battery_temp0 = 50.0;
+  solar_current = 50.0;
+  solar_voltage = 50.0;
 
   // NOTE: not fully implemented!!
   // top left gauge
@@ -712,22 +721,17 @@ int status = 1;
   
 void loop() {
   // remove all code in loop when test with CAN
-  bus_voltage = 60.0;
-  bus_current = 40.0;
-  battery_volt0 = 30.0;
-  battery_temp0 = 20.0;
-  solar_current = 12.0;
-  solar_voltage = 30.0;
+
 
   updateTritium(status, status);
   updateSolar(status, status, status, status, status);
   
   updateBatteryVoltage(status, status, status);
   updateBatteryTemp(status, status, status, status, status, status, status, status, status);
- 
+
  // check system status portion not fully implemented, can be left in
  // not set up in Can.attach yet
-  batt = 1;
   checkSystemStatus();
+  
   status = 0;
 }
