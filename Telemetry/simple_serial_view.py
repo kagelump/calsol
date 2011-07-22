@@ -71,10 +71,8 @@ def readData(length):
 if __name__ == '__main__':
     ser = serial.Serial()
     ser.baudrate = 115200
-    ser.port
+    ser.port = 'COM1'
+    ser.open()
     while True:
-        if not ser.available():
-            continue
-        else:
-##            readMessage()
-            debug()
+##        readMessage()
+        debug()
