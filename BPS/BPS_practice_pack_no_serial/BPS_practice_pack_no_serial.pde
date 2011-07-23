@@ -262,6 +262,7 @@ void loop() {
     float convTemp[3];
     readTemp(temp,boards[k]);
     convertVoltTemp(temp,convTemp);
+   
     /*
     Serial.println("Temperature: ");
     Serial.print("External 1: ");
@@ -305,17 +306,20 @@ void loop() {
           warning = true;
       }
     }
-    //Check for absolute temperature problems
-    if(checkTemperatures(convTemp,40)) {
-      if(checkTemperatures(convTemp,45)) {
-        char exceedtmp[1] = { 0x04 };
-        sendCAN(0x021,exceedtmp,1);
-        error = true;
-        delay(10);
-        Serial.println("Exceeded Temperature Limit");
-        delay(30000);
-      } else {
-        warning = true;
+    
+    if (k!=0){  //ignoring first board since no thermal probes attached.
+      //Check for absolute temperature problems
+      if(checkTemperatures(convTemp,50)) {
+        if(checkTemperatures(convTemp,55)) {
+          char exceedtmp[1] = { 0x04 };
+          sendCAN(0x021,exceedtmp,1);
+          error = true;
+          delay(10);
+          Serial.println("Exceeded Temperature Limit");
+          delay(30000);
+        } else {
+          warning = true;
+        }
       }
     }
     //Serial.println("==========================================");
