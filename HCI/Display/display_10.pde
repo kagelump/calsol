@@ -1,7 +1,7 @@
 /* CalSol - UC Berkeley Solar Vehicle Team 
  * display.pde - Dashboard Module
  * Author(s): Michael Chang, Lily Lin
- * Date: July 17th 2011
+ * Date: July 23th 2011
  */
 
 const int FONT_5x7 = 0x00;
@@ -853,12 +853,12 @@ void loop() {
       battery_last_received = millis();
       clearText(0, 2);
       writeStatusLine(0, 2, ONLINE);
-//    case CUTOFF_VOLTAGE:
-//      battery_voltage = ((two_floats*)msg.data)->f[1];
-//      last_received = millis();
-//      updateBatteryVoltage(1);
-//      clearText(0, 2);
-//      writeStatusLine(0, 2, ONLINE);
+    case CUTOFF_VOLTAGE:
+      battery_voltage = ((two_floats*)msg.data)->f[1];
+      last_received = millis();
+      updateBatteryVoltage(1);
+      clearText(0, 2);
+      writeStatusLine(0, 2, ONLINE);
     default:
       break;
   }
