@@ -30,11 +30,20 @@
   },
 
   "0x523" : {
-    "name" : "Cutoff Readings",
-    "format" : "ff",
+    "name" : "Cutoff Voltages",
+    "format" : "HH",
     "messages" : [
       ["Voltage 1", "volt", "Primary Voltage Reading"],
-      ["Voltage 2", "volt", "Secondary Voltage Reading"],
+      ["Voltage 2", "volt", "Secondary Voltage Reading"]
+    ],
+    "source" : "Cutoff",
+    "period" : 200
+  },
+  
+  "0x524" : {
+    "name" : "Cutoff Currents",
+    "format" : "HH",
+    "messages" : [
       ["Current 1", "milliamp", "Primary Current Reading"],
       ["Current 2", "milliamp", "Secondary Current Reading"]
     ],
