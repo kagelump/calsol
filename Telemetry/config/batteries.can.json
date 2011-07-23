@@ -299,21 +299,21 @@
       ["Cell Voltage", "volt", "The battery cell voltage"]
     ]
   },
-  "0x12B" : {
+  "0x12C" : {
     "name" : "Battery Information Module 2 External Temp 1",
     "format" : "f",
     "messages" : [
       ["External cell temp 1", "celcius", "External temperature probe 1"]
     ]
   },
-  "0x12B" : {
+  "0x12D" : {
     "name" : "Battery Information Module 2 External Temp 2",
     "format" : "f",
     "messages" : [
       ["External cell temp 2", "celcius", "External temperature probe 2"]
     ]
   },
-  "0x12B" : {
+  "0x12E" : {
     "name" : "Battery Information Module 2 LTC6802-2 On Die Temp",
     "format" : "f",
     "messages" : [
