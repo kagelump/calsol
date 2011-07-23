@@ -61,6 +61,8 @@ const int NOTSET = 0x02;
 #define MPPT_5                  0x774
 #define BATTERY_MOD_0_0         0x100
 #define BATTERY_EXT_0           0x10C
+#define CUTOFF_VOLTAGE          0x523
+#define CUTOFF_CURRENT          0x524
 
 /* Pin definitions here */
 #define ANALOGIN_ACCEL 2
@@ -85,6 +87,8 @@ long max_solar_voltage = 100;
 long max_solar_current = 100;
 long max_battery_volt0 = 100;
 long max_battery_temp0 = 100;
+long max_battery_voltage = 150;
+long max_battery_temp = 50;
 // values from CAN
 volatile long bus_voltage = 0;
 volatile long bus_current = 0;
@@ -97,6 +101,10 @@ volatile long solar_voltage = 0;
 volatile long solar_current = 0;
 volatile long battery_volt0 = 0;
 volatile long battery_temp0 = 0;
+
+volatile long battery_voltage = 0;
+
+volatile long cutoff_volt = 0;
 
 volatile int time = millis();
 volatile int batt = 0;
@@ -115,6 +123,7 @@ volatile int motorok = NOTSET;
 volatile int cutoffok = NOTSET;
 volatile int systemok = NOTSET;
 volatile int tempok = NOTSET;
+char* OK = "OK";
 
 char* INITIALSTAT = "Not Set";
 int   INITSTATCOL = blue;
@@ -144,6 +153,8 @@ void drawBlueBackground(){
   Serial1.write(0x42); //send command to change background color
   Serial1.write((unsigned char)0x0); //zero red, zero green, unsigned char cast needed for zero  because of dumb compiler issues
   Serial1.write(0x1f); //max blue value
+  
+  display_readAck();
 }
 
 void drawLine(int xStartPos, int yStartPos, int xEndPos, int yEndPos, int color){
@@ -208,6 +219,8 @@ void drawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, int color){
   
   Serial1.write((unsigned char)(color>>8)&0xff);
   Serial1.write((unsigned char)color&0xff);
+  
+  display_readAck();
 }
 
 void drawRect(int x1, int y1, int x2, int y2, int color){
@@ -228,6 +241,7 @@ void drawRect(int x1, int y1, int x2, int y2, int color){
   Serial1.write((unsigned char)(color>>8)&0xff);
   Serial1.write((unsigned char)color&0xff);
 
+  display_readAck();
 }
 
 void drawEllipse(int x1, int y1, int xmaj, int ymin, int color){
@@ -248,6 +262,7 @@ void drawEllipse(int x1, int y1, int xmaj, int ymin, int color){
   Serial1.write((unsigned char)(color>>8)&0xff);
   Serial1.write((unsigned char)color&0xff);
 
+  display_readAck();
 }
 
 
@@ -267,6 +282,8 @@ void drawASCII(int symb, int xCoor, int yCoor, int symbColor, int width, int hei
   
   Serial1.write(width);
   Serial1.write(height);
+  
+  display_readAck();
 }
 
 void drawString(int xCoor, int yCoor, int font, int stringColor, int width, int height, char* string) {
@@ -377,6 +394,9 @@ void drawGaugeNeedle(int centerX, int centerY, int rad, int pct, int color) {
   int endY = centerY - (int)(rad * sin(angleRad));
   
   drawLine(centerX, centerY, endX, endY, color);
+  if (display_readAck() == DISPLAY_RESP_ACK) {
+    return;
+  }
 }
 
 void clearGauge(int centerX, int centerY, int rad, int color){
@@ -389,12 +409,18 @@ void updateGaugeNeedle(int x, int y, int rad, int pct, int color, int bg) {
   
   clearGauge(centerX, centerY, rad, bg);
   drawGaugeNeedle(centerX, centerY, rad, pct, color);
+  if (display_readAck() == DISPLAY_RESP_ACK) {
+    return;
+  }
 }
 
 
 
 void updateGaugeText(int x, int y, int bottom, long value) {
   drawInteger(40 + 100*x, 60 + 100*y, FONT_5x7, white, 2, 2, value);
+  if (display_readAck() == DISPLAY_RESP_ACK) {
+    return;
+  }
 }
 
 void updateTritium(int bus, int velocity) {
@@ -407,36 +433,49 @@ void updateTritium(int bus, int velocity) {
       updateGaugeText(1, 0, 0, bus_current);
     }
   }
+  if (display_readAck() == DISPLAY_RESP_ACK) {
+    return;
+  }
 }
 
 void updateSolar(int mod1, int mod2, int mod3, int mod4, int mod5) {
- if (mod5) {
-   if (screen == MAIN) {
-     updateGaugeNeedle(2, 1, rad, 100*solar_voltage/max_solar_voltage, white, black);
-     updateGaugeNeedle(1, 1, rad, 100*solar_current/max_solar_current, white, black);
-     updateGaugeText(2, 1, 0, solar_voltage);
-     updateGaugeText(1, 1, 0, solar_current);
-   }
- } 
+  if (mod5) {
+    if (screen == MAIN) {
+      updateGaugeNeedle(2, 1, rad, 100*solar_voltage/max_solar_voltage, white, black);
+      updateGaugeNeedle(1, 1, rad, 100*solar_current/max_solar_current, white, black);
+      updateGaugeText(2, 1, 0, solar_voltage);
+      updateGaugeText(1, 1, 0, solar_current);
+    }
+  } 
+  if (display_readAck() == DISPLAY_RESP_ACK) {
+    return;
+  }
 }
 
-void updateBatteryVoltage(int mod0, int mod1, int mod2) {
-  if (mod0) {
+void updateBatteryVoltage(int bps) {
+  if (bps) {
     if (screen == MAIN) {
-     updateGaugeNeedle(0, 0, rad, 100*battery_volt0/max_battery_volt0, white, black);   
-     updateGaugeText(0, 0, 0, battery_volt0);
+      updateGaugeNeedle(0, 0, rad, 100*battery_voltage/max_battery_voltage, white, black);   
+      updateGaugeText(0, 0, 0, battery_voltage);
     }
+  }
+  if (display_readAck() == DISPLAY_RESP_ACK) {
+    return;
   }
 }
 
 void updateBatteryTemp(int e01, int e02, int i0, int e11, int e12, int i1, int e21, int e22, int i2) {
- if (e01) {
-  if (screen == MAIN) {
-   updateGaugeNeedle(0, 1, rad, 100*battery_temp0/max_battery_temp0, white, black);
-   updateGaugeText(0, 1, 0, battery_temp0);
+  if (e01) {
+    if (screen == MAIN) {
+      updateGaugeNeedle(0, 1, rad, 100*battery_temp0/max_battery_temp0, white, black);
+      updateGaugeText(0, 1, 0, battery_temp0);
+    }
+  } 
+  if (display_readAck() == DISPLAY_RESP_ACK) {
+    return;
   }
- } 
 }
+
 
 
 /**
@@ -485,6 +524,9 @@ void drawGaugeFrame(int centerX, int centerY, int radInner, int radOuter,
       drawLine(startX, startY, endX, endY, blue);
     }
   }  
+  if (display_readAck() == DISPLAY_RESP_ACK) {
+    return;
+  }
 }
 
 
@@ -495,6 +537,10 @@ void setupGauge(int x, int y, char* string) {
     string);
   drawGaugeFrame(50 + 100*x, 50 + 100*y, 35, 45, -40, 220, 20,
     80, 120, 180);
+
+  if (display_readAck() == DISPLAY_RESP_ACK) {
+    return;
+  }
 }
 
 void clearText(int x, int y) {
@@ -503,6 +549,10 @@ void clearText(int x, int y) {
   startX = 50 + 100*x;
   startY = 210 + 10*y;
   drawRect(startX, startY, startX + 50, startY + 9, black);
+
+  if (display_readAck() == DISPLAY_RESP_ACK) {
+    return;
+  }
 }
 
 void writeStatusLine(int x, int y, int stat) {
@@ -520,6 +570,9 @@ void writeStatusLine(int x, int y, int stat) {
     FONT_5x7, red, defaultFontWidth, defaultFontHeight,
     "Offline");  
   }  
+  if (display_readAck() == DISPLAY_RESP_ACK) {
+    return;
+  }
 }
 
 void checkSystemStatus() {
@@ -558,22 +611,25 @@ void checkSystemStatus() {
 //  }
 //  
   if (screen == MAIN) {
-   if (batt) {
-     clearText(0, 0);
-     writeStatusLine(0, 0, batteryok);
-     batt = 0;
-   }
-   if (motor) {
-     clearText(1, 0);
-     writeStatusLine(1, 0, motorok);
-     motor = 0;
-   }
-   if(solar) {
-     clearText(1, 1);
-     writeStatusLine(1, 1, solarok);
-     solar = 0;
-   }
- } 
+    if (batt) {
+      clearText(0, 0);
+      writeStatusLine(0, 0, batteryok);
+      batt = 0;
+    }
+    if (motor) {
+      clearText(1, 0);
+      writeStatusLine(1, 0, motorok);
+      motor = 0;
+    }
+    if(solar) {
+      clearText(1, 1);
+      writeStatusLine(1, 1, solarok);
+      solar = 0;
+    }
+  } 
+  if (display_readAck() == DISPLAY_RESP_ACK) {
+    return;
+  }
 }
 
 
@@ -589,13 +645,16 @@ void process_packet(CanMessage &msg) {
       tritium_last_received = millis();
       last_received = millis();
       updateTritium(1, 0);
+      clearText(0, 2);
+      writeStatusLine(0, 2, ONLINE);
       break;
     case CAN_TRITIUM_VELOCITY:
       motor_speed = ((two_floats*)msg.data)->f[0];
       measured_speed = ((two_floats*)msg.data)->f[1];
       tritium_last_received = millis();
       last_received = millis();
-      
+      clearText(0, 2);
+      writeStatusLine(0, 2, ONLINE);
     // NOTE implement running average for MPPT data, for now using module 5
     case MPPT_5:
       solar_voltage = ((two_floats*)msg.data)->f[3];
@@ -603,14 +662,26 @@ void process_packet(CanMessage &msg) {
       solar_last_received = millis();
       last_received = millis();
       updateSolar(0, 0, 0, 0, 1);
+      clearText(0, 2);
+      writeStatusLine(0, 2, ONLINE);
     case BATTERY_MOD_0_0:
       battery_volt0 = ((two_floats*)msg.data)->f[0];
       last_received = millis();
       battery_last_received = millis();
+      clearText(0, 2);
+      writeStatusLine(0, 2, ONLINE);
     case BATTERY_EXT_0:
       battery_temp0 = ((two_floats*)msg.data)->f[0];
       last_received = millis();
       battery_last_received = millis();
+      clearText(0, 2);
+      writeStatusLine(0, 2, ONLINE);
+    case CUTOFF_VOLTAGE:
+      battery_voltage = ((two_floats*)msg.data)->f[1];
+      last_received = millis();
+      updateBatteryVoltage(1);
+      clearText(0, 2);
+      writeStatusLine(0, 2, ONLINE);
     default:
       break;
   }
@@ -626,7 +697,8 @@ void setup(){
   /* Can Initialization w/o filters */
   Can.attach(&process_packet);    
   Can.begin(1000, false);
-  CanBufferInit();
+//  Can.begin(1000);
+//  CanBufferInit();
   
   Serial1.begin(9600);
 
@@ -642,7 +714,7 @@ void setup(){
   
   bus_voltage = 50.0;
   bus_current = 50.0;
-  battery_volt0 = 50.0;
+  battery_voltage = 50.0;
   battery_temp0 = 50.0;
   solar_current = 50.0;
   solar_voltage = 50.0;
@@ -679,10 +751,16 @@ void setup(){
   drawString(10, 220,
     FONT_5x7, white, defaultFontWidth, defaultFontHeight,
     "Solar:");
+  drawString(10, 230,
+    FONT_5x7, white, defaultFontWidth, defaultFontHeight,
+    "LstMsg:");
   drawString(50, 210,
     FONT_5x7, INITSTATCOL, defaultFontWidth, defaultFontHeight,
     INITIALSTAT);
   drawString(50, 220,
+    FONT_5x7, INITSTATCOL, defaultFontWidth, defaultFontHeight,
+    INITIALSTAT);
+  drawString(50, 230,
     FONT_5x7, INITSTATCOL, defaultFontWidth, defaultFontHeight,
     INITIALSTAT);
     
@@ -721,17 +799,16 @@ int status = 1;
   
 void loop() {
   // remove all code in loop when test with CAN
-
-
-  updateTritium(status, status);
-  updateSolar(status, status, status, status, status);
+    updateTritium(status, status);
+    updateSolar(status, status, status, status, status);
   
-  updateBatteryVoltage(status, status, status);
-  updateBatteryTemp(status, status, status, status, status, status, status, status, status);
+    updateBatteryVoltage(status);
+    updateBatteryTemp(status, status, status, status, status, status, status, status, status);
 
  // check system status portion not fully implemented, can be left in
  // not set up in Can.attach yet
-  checkSystemStatus();
+    checkSystemStatus();
   
-  status = 0;
+    status = 0;
+  
 }
