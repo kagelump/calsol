@@ -1,3 +1,4 @@
+import codecs
 import datetime
 import time
 import traceback
@@ -15,70 +16,6 @@ import json
 from xbee import XBee
 
 from GraphData import GraphData
-
-class FilterByIDStream:
-    def __init__(self, port):
-        self.port = port
-        self.data_table = defaultdict(PriorityQueue)
-        self.time_table = {}
-        self.buffer = ""
-
-    def get_data(self, identifier):
-        return self.data_table[identifier]
-
-    def sample(self):
-        self.buffer += self.port.read()
-        while "\n" in self.buffer:
-            datum, self.buffer = self.buffer.split("\n", 1)
-            if not datum.strip("\r\n "):
-                break
-            try:
-                ident, t, value = datum.split(",")
-                if ident in self.time_table:
-                    arduino_start, real_start = self.time_table[ident]
-                    delta = datetime.timedelta(milliseconds=(int(t)-arduino_start))
-                    adjusted_time = real_start + delta
-                    self.data_table[ident].put((adjusted_time, float(value)))
-                else:
-                    real_start = datetime.datetime.utcnow()
-                    arduino_start = int(t)
-                    self.time_table[ident] = (arduino_start, real_start)
-                    self.data_table[ident].put((real_start, float(value)))
-            except BaseException as err:
-                print "Error on line: '%s'" % datum.strip("\r\n")
-                traceback.print_exc()
-
-            self.buffer += self.port.read()
-
-class SineDataStream:
-    def __init__(self, timeout=None):
-        self.timeout = timeout
-        self.data_table = defaultdict(PriorityQueue)
-
-    def sample(self):
-        if self.timeout is not None:
-            time.sleep(self.timeout)
-
-    def get_data(self, identifier):
-        now = datetime.datetime.utcnow()
-        if identifier == "LDR1":
-            self.data_table[identifier].put((now, 2.5 + 2.5*math.sin(time.time())));
-        else:
-            self.data_table[identifier].put((now, 2.5 + 2.5*math.sin(time.time()+math.pi/2)));
-        return self.data_table[identifier]
-class RandomDataStream:
-    def __init__(self):
-        self.data_table = defaultdict(PriorityQueue)
-        self.last_data = defaultdict(lambda: 5.0*random.random())
-        self.sample_time = datetime.datetime.utcnow()
-    def sample(self):
-        self.sample_time = datetime.datetime.utcnow()
-    def get_data(self, identifier):
-        value = self.last_data[identifier] + random.gauss(0.0, 0.5)
-        bounded = min(max(value, 0.0), 5.0)
-        self.data_table[identifier].put((self.sample_time, bounded))
-        self.last_data[identifier] = bounded
-        return self.data_table[identifier]
 
 class DataSource(object):
     """
@@ -307,6 +244,190 @@ class XOMBIEDecoder:
         for key, desc in mapping.iteritems():
             self.descriptors[int(key, 16)] = desc
 
+class TransparentMessageDecoder:
+    ID_MASK =  0xfff0
+    LEN_MASK = 0x000f
+    
+    def __init__(self, mappings=None):
+        self.descriptors = {}
+        mappings = mappings if mappings else []
+        for mapping in mappings:
+            self.add_descriptors(mapping)
+
+    def decode(self, msg):
+        """
+        Decodes a XOMBIE data message carrying a CAN message and returns
+        a tuple of (TIME, ID, DESC, DATA)
+        where TIME is the time the message was received
+              ID is the CAN ID as an integer
+              DESC is the CAN message descriptor dictionary
+              DATA is a tuple of data values from the message
+        """
+        if len(msg) < 2:
+            raise ValueError("Message is too short - can't fit a preamble")
+        preamble = msg[:2]
+        
+        (x,) = struct.unpack("<H", preamble)
+        
+        ID = (x & self.ID_MASK) >> 4
+        LEN = x & self.LEN_MASK
+
+        if LEN < 0 or LEN > 8:
+            raise ValueError("Invalid CAN payload length - %d bytes not in [0,8] bytes" % LEN)
+
+        TIME = datetime.datetime.utcnow()
+        
+        if ID in self.descriptors:
+            desc = self.descriptors[ID]
+            if "format" not in desc:
+                raise ValueError("No format specified for %#x:%s" % (ID, desc["name"]))
+            if LEN != struct.calcsize("<" + str(desc["format"])):
+                raise ValueError("Error in decoding message id=%#x name=%s - length field %d mismatches descriptor %d"
+                                 % (ID, desc["name"], LEN, struct.calcsize("<" + str(desc["format"]))))
+
+            DATA = struct.unpack("<" + str(desc["format"]), msg[2:2+LEN])
+            
+            return (TIME, ID, desc, DATA)
+        else:
+            raise ValueError("Unknown message id=%#x, len=%d, data=%r" % (ID, LEN, msg[2:]))
+    def add_descriptors(self, mapping):
+        """
+        Takes a dictionary mapping from string ID constants to message field data
+        and adds it to the decoder's internal descriptor table.
+        """
+        for key, desc in mapping.iteritems():
+            self.descriptors[int(key, 16)] = desc
+
+START_BYTE  = 0xE7
+ESCAPE_BYTE = 0x75
+class TransparentStreamDecoder(codecs.IncrementalDecoder):
+    def __init__(self, errors  = 'strict',
+                 escaped_bytes = [bytes(chr(START_BYTE)), bytes(chr(ESCAPE_BYTE))],
+                 escape_byte   = bytes(chr(ESCAPE_BYTE))):
+        codecs.IncrementalDecoder.__init__(self, errors)
+        self.escaped_bytes = frozenset(escaped_bytes)
+        self.escape_byte   = escape_byte
+        self.escape_value  = ord(escape_byte)
+        self.escape_next   = False
+
+    def decode(self, obj, final=False):
+        output = ""
+        for byte in obj:
+            if self.escape_next:
+                unescaped = bytes(chr(ord(byte) ^ self.escape_value))
+                if unescaped not in self.escaped_bytes:
+                    if self.errors == 'strict':
+                        raise ValueError("Got an unexpected value while unescaping. %#2x %#2x -> %#2x is not a required escape sequence"
+                                         % (ord(self.escape_byte), ord(byte), ord(unescaped)))
+                    elif self.errors == 'ignore':
+                        pass
+                    elif self.errors == 'replace':
+                        pass
+                output += unescaped
+                self.escape_next = False
+            elif byte == self.escape_byte:
+                self.escape_next = True
+            else:
+                output += byte
+
+        if final and self.escape_next:
+            if self.errors == 'strict':
+                raise ValueError("Bad data stream - got EOF before finding the escaped byte after an indicator escape byte")
+            elif self.errors == 'ignore':
+                pass
+            elif self.errors == 'replace':
+                pass
+
+        return output
+
+    def reset(self):
+        self.escape_next = False
+
+    def getstate(self):
+        return ("", self.escape_next)
+
+    def setstate(self, state):
+        buf, self.escape_next = state
+    
+
+class TransparentStream:
+    """
+    Handles unescaping the escaped serial data stream and finding message
+    boundaries.
+    """
+    START_BYTE = 0xE7
+    ESCAPE_BYTE = 0x75
+
+    START_CHAR = chr(START_BYTE)
+    def __init__(self, decoder, logger, port):
+        self.decoder = decoder
+        self.stream_decoder = TransparentStreamDecoder()
+        self.logger = logger
+
+        self.buffer = ""
+
+        self.port = port
+
+        self.data_table = {}
+        self.msg_queue = PriorityQueue()
+
+    def start(self):
+        pass
+
+    def read(self):
+        self.buffer += self.stream_decoder.decode(self.port.read(4096))
+##        if self.buffer:
+##            print "buf:", self.buffer
+
+    def process(self):
+##        print "processing"
+        self.read()
+##        if self.buffer:
+##            print " ".join(hex(ord(c)) for c in self.buffer)
+        if self.buffer.count(self.START_CHAR) < 2:
+            return
+
+        packets = []
+
+        self.buffer = self.buffer[self.buffer.index(self.START_CHAR)+1:]
+        index = self.buffer.index(self.START_CHAR)
+        while self.START_CHAR in self.buffer:
+            packets.append(self.buffer[:index])
+            self.buffer = self.buffer[index+1:]
+        
+##        if self.buffer.startswith(self.START_CHAR):
+##            packets = self.buffer[1:].split(self.START_CHAR)
+##        else:
+##            packets = self.buffer.split(self.START_CHAR)
+##        if packets:
+##            self.buffer = self.START_CHAR + packets.pop(-1)
+        for packet in packets:
+            try:
+                ts, id_, descr, data = self.decoder.decode(packet)
+            except ValueError as e:
+                print "Error while decoding packet '%s': %s" % (''.join([hex(ord(c)) for c in packet]), e)
+            except BaseException as e:
+                print "Unexpected error occured while decoding packet '%s': %s" % (''.join([hex(ord(c)) for c in packet]), e)
+            else:                
+                for msg_descr, datum in zip(descr["messages"], data):
+                    ident = "%#x:%s" % (id_, msg_descr[0])
+                    self.put_data(ident, (ts, datum), msg_descr)
+                    self.msg_queue.put((id_, msg_descr[0], ts, datum))
+                    self.logger.info("Got packet %s = %s", ident, datum)
+
+    def put_data(self, identifier, datum, desc=None):
+        if identifier not in self.data_table:
+            self.data_table[identifier] = DataSource(identifier, desc)
+        self.data_table[identifier].put(datum)
+
+    def get_data(self, identifier):
+        if identifier not in self.data_table:
+            self.data_table[identifier] = DataSource(identifier)
+        return self.data_table[identifier]
+
+    def close(self):
+        self.port.close()
+
 class XOMBIEStream:
     """Handles the """
     ASSOCIATED = "ASSOCIATED"
@@ -382,7 +503,7 @@ class XOMBIEStream:
             self.state = XOMBIEStream.UNASSOCIATED
 
     def process(self, frame):
-        print frame
+        #print frame
         #print "\a"
         if frame["id"] == "rx_long_addr":
             alpha = 0.5
@@ -473,56 +594,56 @@ class XOMBIEStream:
         self.xbee.halt()
         self.port.close()
     
-if __name__ == "__main__":
-    from ports import ask_for_port
-    from time import sleep
-    import sys
-    import glob
-    import logging
-    
-    desc_sets = []
-    for fname in glob.glob("*.can.json"):
-        f = open(fname, "r")
-        desc_sets.append(json.load(f))
-        f.close()
-
-    port = ask_for_port("ports.cfg")
-    if not port:
-        sys.exit(0)
-        
-    decoder = XOMBIEDecoder(desc_sets)
-    stream = XOMBIEStream(port, decoder, logging, 0x0013A20040621D3B)
-    x = 0
-    did_not_reply = False
-    def mark_heartbeat():
-        global did_not_reply
-        did_not_reply = False
-
-    stream.add_callback(0x85, mark_heartbeat)
-    
-    try:
-        while True:
-            try:
-                while stream.state is XOMBIEStream.UNASSOCIATED:
-                    stream.send_handshake1()
-                    sleep(0.5)
-                while stream.state is XOMBIEStream.ASSOCIATED:
-                    if datetime.datetime.utcnow() - stream.last_received > datetime.timedelta(seconds=5):
-                        logging.warning("Haven't received data packet since %s",
-                                              stream.last_received.strftime("%H:%M:%S"))
-                        logging.warning("Sending heartbeat check")
-                        
-                        stream.send_no_ack("\x84")
-                        did_not_reply = True
-                        for i in xrange(60):
-                            sleep(0.1)
-                            if not did_not_reply:
-                                break
-                        if did_not_reply:
-                            logging.error("Didn't hear a heartbeat response - disassociating.")
-                            stream.state = XOMBIEStream.UNASSOCIATED
-
-            except KeyboardInterrupt:
-                break
-    finally:
-        stream.close()
+##if __name__ == "__main__":
+##    from ports import ask_for_port
+##    from time import sleep
+##    import sys
+##    import glob
+##    import logging
+##    
+##    desc_sets = []
+##    for fname in glob.glob("*.can.json"):
+##        f = open(fname, "r")
+##        desc_sets.append(json.load(f))
+##        f.close()
+##
+##    port = ask_for_port("ports.cfg")
+##    if not port:
+##        sys.exit(0)
+##        
+##    decoder = XOMBIEDecoder(desc_sets)
+##    stream = XOMBIEStream(port, decoder, logging, 0x0013A20040621D3B)
+##    x = 0
+##    did_not_reply = False
+##    def mark_heartbeat():
+##        global did_not_reply
+##        did_not_reply = False
+##
+##    stream.add_callback(0x85, mark_heartbeat)
+##    
+##    try:
+##        while True:
+##            try:
+##                while stream.state is XOMBIEStream.UNASSOCIATED:
+##                    stream.send_handshake1()
+##                    sleep(0.5)
+##                while stream.state is XOMBIEStream.ASSOCIATED:
+##                    if datetime.datetime.utcnow() - stream.last_received > datetime.timedelta(seconds=5):
+##                        logging.warning("Haven't received data packet since %s",
+##                                              stream.last_received.strftime("%H:%M:%S"))
+##                        logging.warning("Sending heartbeat check")
+##                        
+##                        stream.send_no_ack("\x84")
+##                        did_not_reply = True
+##                        for i in xrange(60):
+##                            sleep(0.1)
+##                            if not did_not_reply:
+##                                break
+##                        if did_not_reply:
+##                            logging.error("Didn't hear a heartbeat response - disassociating.")
+##                            stream.state = XOMBIEStream.UNASSOCIATED
+##
+##            except KeyboardInterrupt:
+##                break
+##    finally:
+##        stream.close()

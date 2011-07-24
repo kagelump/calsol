@@ -49,7 +49,7 @@ class SignalTreeWidget(QtGui.QTreeWidget):
         self.descr_map = {}
 
     def add_descriptors(self, desc_sets):
-        pattern = re.compile(r"Battery Information Module (\d+) Cell (\d+)")
+        pattern = re.compile(r"Battery Information Module (\d+) (?:Cell (\d+)|(.+))")
         #Note: we want to flatten trees of the form:
         #Battery Module X Cell A
         #|-Cell Voltage
@@ -79,9 +79,10 @@ class SignalTreeWidget(QtGui.QTreeWidget):
         for fname, desc_set in desc_sets:
             group_item = QtGui.QTreeWidgetItem(self, [fname])
             for id_, descr in sorted(desc_set.items()):
+                id_ = "%#x" % int(id_, 16)
                 if pattern.match(descr["name"]):
                     m = pattern.match(descr["name"])
-                    mod_num, cell_num = m.group(1), m.group(2)
+                    mod_num, info = m.group(1), (m.group(2) or m.group(3))
                     if mod_num in module_items:
                         module = module_items[mod_num]
                     else:
@@ -90,13 +91,13 @@ class SignalTreeWidget(QtGui.QTreeWidget):
                         module_items[mod_num] = module
                     for [name, units, desc] in descr.get("messages", []):
                         ident, item = make_msg_item(module, id_,
-                                                    name + " " + cell_num,
+                                                    name + " " + info,
                                                     units, desc)
                         self.widgets[ident] = (item, [module, group_item])
                         #Also set the normal identifier
                         self.widgets[id_+":"+name] = self.widgets[ident]
                         self.descr_map[id_+":"+name] = self.descr_map[ident] = [name, units, desc]
-                else:        
+                else:
                     packet_item = QtGui.QTreeWidgetItem(group_item, [descr["name"]])
                     packet_item.setToolTip(0, id_ + ":" + descr["name"])
                     

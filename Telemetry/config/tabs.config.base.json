@@ -1,0 +1,807 @@
+[
+    [
+        "Tritium Bus", 
+        {
+            "plots": [
+                {
+                    "autoscale": true, 
+                    "xview": [
+                        734342.85565232637, 
+                        734342.85599954857
+                    ], 
+                    "title": "Bus Voltage", 
+                    "yview": [
+                        0.0, 
+                        1.3094246387481689
+                    ], 
+                    "signals": [
+                        [
+                            "0x402:Bus Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ]
+                    ], 
+                    "static": false, 
+                    "units": "Volts"
+                }, 
+                {
+                    "autoscale": true, 
+                    "xview": [
+                        734342.85565232637, 
+                        734342.85599954857
+                    ], 
+                    "title": "Bus Current", 
+                    "yview": [
+                        0.0, 
+                        1.0
+                    ], 
+                    "signals": [
+                        [
+                            "0x402:Bus Current", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ]
+                    ], 
+                    "static": false, 
+                    "units": "Amps"
+                }
+            ], 
+            "type": "live.graph", 
+            "timescale": 30, 
+            "icon": "graph-icon.png"
+        }
+    ], 
+    [
+        "Velocity", 
+        {
+            "plots": [
+                {
+                    "autoscale": true, 
+                    "xview": [
+                        734342.85554247687, 
+                        734342.85588969907
+                    ], 
+                    "title": "Motor Velocity", 
+                    "yview": [
+                        0.0, 
+                        1.0
+                    ], 
+                    "signals": [
+                        [
+                            "0x403:Motor Velocity", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ]
+                    ], 
+                    "static": false, 
+                    "units": "rpm"
+                }, 
+                {
+                    "autoscale": true, 
+                    "xview": [
+                        734342.85554289352, 
+                        734342.85589011572
+                    ], 
+                    "title": "Vehicle Velocity", 
+                    "yview": [
+                        0.0, 
+                        1.0
+                    ], 
+                    "signals": [
+                        [
+                            "0x403:Vehicle Velocity", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ]
+                    ], 
+                    "static": false, 
+                    "units": "m/s"
+                }
+            ], 
+            "type": "live.graph", 
+            "timescale": 30, 
+            "icon": "graph-icon.png"
+        }
+    ], 
+    [
+        "Phase Current", 
+        {
+            "plots": [
+                {
+                    "autoscale": true, 
+                    "xview": [
+                        734342.85554327548, 
+                        734342.85589049768
+                    ], 
+                    "title": "Phase A Current", 
+                    "yview": [
+                        0.0, 
+                        1.0
+                    ], 
+                    "signals": [
+                        [
+                            "0x404:Phase A Current", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ]
+                    ], 
+                    "static": false, 
+                    "units": "Amps (rms)"
+                }, 
+                {
+                    "autoscale": true, 
+                    "xview": [
+                        734342.85554410878, 
+                        734342.85589133098
+                    ], 
+                    "title": "Phase B Current", 
+                    "yview": [
+                        0.0, 
+                        1.0
+                    ], 
+                    "signals": [
+                        [
+                            "0x404:Phase B Current", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ]
+                    ], 
+                    "static": false, 
+                    "units": "Amps (rms)"
+                }
+            ], 
+            "type": "live.graph", 
+            "timescale": 30, 
+            "icon": "graph-icon.png"
+        }
+    ], 
+    [
+        "Back EMF", 
+        {
+            "plots": [
+                {
+                    "autoscale": true, 
+                    "xview": [
+                        734342.85554450226, 
+                        734342.85589172458
+                    ], 
+                    "title": "BEMFq", 
+                    "yview": [
+                        -9.9736380118206902e+23, 
+                        9.0669436471097202e+22
+                    ], 
+                    "signals": [
+                        [
+                            "0x407:BEMFq", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ]
+                    ], 
+                    "static": false, 
+                    "units": ""
+                }, 
+                {
+                    "autoscale": true, 
+                    "xview": [
+                        734342.85554494208, 
+                        734342.8558921644
+                    ], 
+                    "title": "BEMFd", 
+                    "yview": [
+                        -0.20010232925415039, 
+                        2.2011256217956543
+                    ], 
+                    "signals": [
+                        [
+                            "0x407:BEMFd", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ]
+                    ], 
+                    "static": false, 
+                    "units": ""
+                }
+            ], 
+            "type": "live.graph", 
+            "timescale": 30, 
+            "icon": "graph-icon.png"
+        }
+    ], 
+    [
+        "Module 0", 
+        {
+            "plots": [
+                {
+                    "autoscale": false, 
+                    "xview": [
+                        734342.85554537037, 
+                        734342.85589259258
+                    ], 
+                    "title": "Module 0 Cell Voltages", 
+                    "yview": [
+                        2.7000000000000002, 
+                        3.6000000000000001
+                    ], 
+                    "signals": [
+                        [
+                            "0x10a:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x100:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x104:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x102:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x108:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x106:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x101:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x105:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x103:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x109:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x10b:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x107:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ]
+                    ], 
+                    "static": false, 
+                    "units": "Volts"
+                }
+            ], 
+            "type": "live.graph", 
+            "timescale": 30, 
+            "icon": "graph-icon.png"
+        }
+    ], 
+    [
+        "Module 1", 
+        {
+            "plots": [
+                {
+                    "autoscale": false, 
+                    "xview": [
+                        734342.85554586805, 
+                        734342.85589309025
+                    ], 
+                    "title": "", 
+                    "yview": [
+                        2.7000000000000002, 
+                        3.6000000000000001
+                    ], 
+                    "signals": [
+                        [
+                            "0x113:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x115:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x111:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x116:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x118:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x112:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x114:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x110:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x11a:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x117:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x11b:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x119:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ]
+                    ], 
+                    "static": false, 
+                    "units": "Volts"
+                }
+            ], 
+            "type": "live.graph", 
+            "timescale": 30, 
+            "icon": "graph-icon.png"
+        }
+    ], 
+    [
+        "Module 2", 
+        {
+            "plots": [
+                {
+                    "autoscale": false, 
+                    "xview": [
+                        734342.85554633103, 
+                        734342.85589355323
+                    ], 
+                    "title": "", 
+                    "yview": [
+                        0.0, 
+                        26.895199584960938
+                    ], 
+                    "signals": [
+                        [
+                            "0x12a:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x126:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x120:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x124:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x129:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x123:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x127:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x121:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x125:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x128:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ], 
+                        [
+                            "0x122:Cell Voltage", 
+                            [
+                                0.0, 
+                                0.0, 
+                                1.0, 
+                                1.0
+                            ], 
+                            [
+                                null, 
+                                null
+                            ]
+                        ]
+                    ], 
+                    "static": false, 
+                    "units": ""
+                }
+            ], 
+            "type": "live.graph", 
+            "timescale": 30, 
+            "icon": "graph-icon.png"
+        }
+    ]
+]

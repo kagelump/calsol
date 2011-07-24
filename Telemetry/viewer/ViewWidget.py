@@ -38,7 +38,7 @@ class TabViewContainer(QtGui.QTabWidget):
 
         link(self.rename_action.triggered, self.rename)
         self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        self.setTabsClosable(True)
+        #self.setTabsClosable(True)
 
         link(self.tabCloseRequested, self.close_tab)
 

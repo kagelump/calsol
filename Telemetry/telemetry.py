@@ -13,7 +13,8 @@ from PySide import QtGui, QtCore
 from viewer import config
 
 from viewer.ports import ask_for_port
-from viewer.sample import XOMBIEDecoder, XOMBIEStream, DataSource
+from viewer.sample import *
+#from viewer.sample import XOMBIEDecoder, XOMBIEStream, DataSource
 from viewer.util import link, find_icon
 
 from viewer.ViewWidget import TabViewContainer, NewTabViewSelector
@@ -127,7 +128,7 @@ class XOMBIEThread(QtCore.QThread):
         self.stream.start()
 
         self.commit_timer.start(5000)
-        self.timer.start(500)
+        self.timer.start(100)
 
     def process(self):
         """
@@ -174,7 +175,7 @@ class XOMBIEThread(QtCore.QThread):
                 
             self.stream.at_command("ND", callback=display_nodes)
 
-        five_seconds = datetime.timedelta(seconds=5)
+        five_seconds = datetime.timedelta(seconds=15)
         if self.stream.state is XOMBIEStream.UNASSOCIATED and not self.checking_assoc:
             self.stream.send_handshake1()
             print "Attempting to associate"
@@ -252,7 +253,6 @@ class XOMBIEThread(QtCore.QThread):
             return QtCore.QThread.event(self, evt)
 
     def shutdown(self):
-        self.heartbeat_timer.stop()
         self.commit_timer.stop()
         self.timer.stop()
         
@@ -260,6 +260,62 @@ class XOMBIEThread(QtCore.QThread):
             self.stream.close()
         
         self.quit()
+
+class TransparentThread(QtCore.QThread):
+    shutdown_event_type = QtCore.QEvent.Type(QtCore.QEvent.registerEventType())
+    def __init__(self, conn, stream, parent=None):
+        QtCore.QThread.__init__(self, parent)
+        self.stream = stream
+        self.connection = conn
+
+        self.timer = self.commit_timer = None
+
+        link(self.started, self.setup)
+    
+    def setup(self):
+        self.timer = QtCore.QTimer()
+        self.commit_timer = QtCore.QTimer()
+        
+        link(self.commit_timer.timeout, self.commit_data)
+        link(self.timer.timeout, self.process)
+
+        self.commit_timer.start(5000)
+        self.timer.start(500)
+
+    def process(self):
+        self.stream.process()
+        cursor = self.connection.cursor()
+        while not self.stream.msg_queue.empty():
+            id_, name, t, datum = self.stream.msg_queue.get_nowait()
+            self.insert_data(cursor, id_, name, t, datum)
+        cursor.close()
+        for source in self.stream.data_table.values():
+            source.pull()
+
+    def insert_data(self, cursor, id_, name, t, data):
+        cmd = "INSERT INTO data(id, name, time, data) VALUES (?,?,?,?)"
+        cursor.execute(cmd, (id_, name, t, json.dumps(data, ensure_ascii=False)))
+
+    def commit_data(self):
+        self.connection.commit()
+    
+    def event(self, evt):
+        if evt.type() == self.shutdown_event_type:
+            evt.accept()
+            self.shutdown()
+            return True
+        else:
+            return QtCore.QThread.event(self, evt)
+
+    def shutdown(self):
+        self.commit_timer.stop()
+        self.timer.stop()
+        
+        if self.stream is not None:
+            self.stream.close()
+        
+        self.quit()
+
 
 def tableExists(conn, name):
     cur = conn.cursor()
@@ -287,23 +343,26 @@ class TelemetryApp(QtGui.QApplication):
         self.config_database(self.connection, False)
         
         desc_sets = self.load_can_descriptors()
-        decoder = XOMBIEDecoder([desc_set for (source, desc_set) in desc_sets])
+        decoder = TransparentMessageDecoder([desc_set for (source, desc_set) in desc_sets])
+        #decoder = XOMBIEDecoder([desc_set for (source, desc_set) in desc_sets])
 
         self.window = TelemetryViewerWindow(self, "Telemetry Viewer", desc_sets)
 
         if self.start_thread:
-            stream = XOMBIEStream(port, decoder, self.window.logger,
-                                  self.general_options["board_address"])
+            stream = TransparentStream(decoder, self.window.logger, port)
+##            stream = XOMBIEStream(port, decoder, self.window.logger,
+##                                  self.general_options["board_address"])
+            
         else:
             stream = None
-        self.xombie_thread = XOMBIEThread(self.connection, stream)
+        self.xombie_thread = TransparentThread(self.connection, stream)
                 
         link(self.lastWindowClosed, self.closeEvent)
 
     def run(self):
         if self.start_thread:
             self.xombie_thread.start()
-            print "XOMBIE thread started"
+            print "TT thread started"
 
         try:
             self.window.setup_tabs(self.tab_descs)
@@ -356,11 +415,11 @@ class TelemetryApp(QtGui.QApplication):
         try:
             if self.xombie_thread.isRunning():
                 print        "Sending shutdown signal...".ljust(50),
-                shutdown = QtCore.QEvent(XOMBIEThread.shutdown_event_type)
+                shutdown = QtCore.QEvent(TransparentThread.shutdown_event_type)
                 self.sendEvent(self.xombie_thread, shutdown)
-                print "\r" + "Waiting for XOMBIE to shutdown".ljust(50),
+                print "\r" + "Waiting for TT to shutdown".ljust(50),
                 self.xombie_thread.wait()
-                print "\r" + "XOMBIE shutdown successfully".ljust(50)
+                print "\r" + "TT shutdown successfully".ljust(50)
 
             if self.connection is not None:
                 print        "Commiting remaining data to disk".ljust(50),
