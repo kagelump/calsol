@@ -39,8 +39,8 @@ boolean debug = false;
 #define ACCEL_PEDAL 27
 #define BRAKE_PEDAL 28
 
-#define ACCEL_THRESHOLD 90
-#define BRAKE_THRESHOLD 210
+#define ACCEL_THRESHOLD 100
+#define BRAKE_THRESHOLD 20
 //User-Defined Constants
 #define INTERVAL 500           // interval at which to blink (milliseconds)
 #define MAX_SPEED 100
@@ -52,7 +52,9 @@ boolean debug = false;
 byte digit[] = {0x00,0x00};
 //byte digitarr[10] = {B01111110,B00110000,B01101101,B01111001,B00110011,B01011011,B01011111,B01110010,B01111111,B01110011};
 //byte digitarr[10] = {0x7E,0x30,0x6d,0x79,0x33,0x5b,0x5f,0x72,0x7f,0x73};
-byte digitarr[10] = {0x7E,0x30,0x6d,0x79,0x33,0x5b,0x5f,0xf0,0xff,0xfb};
+byte digitarr[10] = {0x7E,0x30,0x6d,0x79,0x33,0x5b,0x5f,0xf0,0xff,0xfb};//0xfb is 11111011
+byte ERRORBYTE[2] = {0xf9, 0xf7};
+byte PEDALHIGHBYTE[2] = {0xbe,0xf3};
 
 char inputMessage[8] = {0,0,0,0,0,0,0,0}; //this will transfer out inputs over
 //0:RTurn 1:LTurn 2:Strobe(might NOT be used NOW) 3:Horn 4:brake 5:reverse 6:
@@ -179,7 +181,9 @@ void accel(){
   
   int brake = analogRead(BRAKE_PEDAL);
   brake = 1023-brake;
- 
+  brake = brake * 1.75;
+  if (brake > 1023)
+    brake = 1023;
   if(!digitalRead(VEHICLE_STOP)){
     cruiseCancel(1);
     brakeOn = false;
@@ -201,7 +205,8 @@ void accel(){
     return;
   }
   if(!digitalRead(VEHICLE_COAST)) {
-    cruiseCancel();
+    brakeOn = false;
+    cruiseCancel(); 
     setspeed = 0;
     voltage = 0.0;
     return;
@@ -215,12 +220,13 @@ void accel(){
   if(!digitalRead(VEHICLE_REV)) {
     cruiseCancel();
     setspeed = -100.0;
-    voltage = .4 * accel/1023.0;
+    voltage =  accel/1023.0;
     return;
   }  
+  
 cruiseCancel();  
   setspeed = 100.0;
-  voltage = .4 *  accel/1023.0;
+  voltage = accel/1023.0;
   return;
 }
 /********************************************
@@ -416,6 +422,8 @@ void initPins(void){
   digitalWrite(VEHICLE_STOP, HIGH);
   pinMode(VEHICLE_REV, INPUT);
   digitalWrite(VEHICLE_REV, HIGH);
+  digitalWrite(ACCEL_PEDAL,LOW);
+ digitalWrite(BRAKE_PEDAL, LOW);
 }
         
 /************************************
