@@ -226,7 +226,7 @@ void accel(){
   
 cruiseCancel();  
   setspeed = 100.0;
-  voltage = accel/1023.0;
+  voltage = accel/900.0;
   return;
 }
 /********************************************
