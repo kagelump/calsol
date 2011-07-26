@@ -376,14 +376,8 @@ class TransparentStream:
 
     def read(self):
         self.buffer += self.stream_decoder.decode(self.port.read(4096))
-##        if self.buffer:
-##            print "buf:", self.buffer
-
     def process(self):
-##        print "processing"
         self.read()
-##        if self.buffer:
-##            print " ".join(hex(ord(c)) for c in self.buffer)
         if self.buffer.count(self.START_CHAR) < 2:
             return
 
@@ -394,13 +388,7 @@ class TransparentStream:
         while self.START_CHAR in self.buffer:
             packets.append(self.buffer[:index])
             self.buffer = self.buffer[index+1:]
-        
-##        if self.buffer.startswith(self.START_CHAR):
-##            packets = self.buffer[1:].split(self.START_CHAR)
-##        else:
-##            packets = self.buffer.split(self.START_CHAR)
-##        if packets:
-##            self.buffer = self.START_CHAR + packets.pop(-1)
+
         for packet in packets:
             try:
                 ts, id_, descr, data = self.decoder.decode(packet)
@@ -413,7 +401,7 @@ class TransparentStream:
                     ident = "%#x:%s" % (id_, msg_descr[0])
                     self.put_data(ident, (ts, datum), msg_descr)
                     self.msg_queue.put((id_, msg_descr[0], ts, datum))
-                    self.logger.info("Got packet %s = %s", ident, datum)
+                    self.logger.info("%s: Got packet %s = %s", ts.strftime("%H:%M:%S"), ident, datum)
 
     def put_data(self, identifier, datum, desc=None):
         if identifier not in self.data_table:

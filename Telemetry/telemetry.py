@@ -37,22 +37,27 @@ class ConsoleLogger:
     """
     def __init__(self, queue):
         self.queue = queue
+        self.log = open("%s.log" % datetime.date.today().strftime("%Y-%m-%d"), "a")
 
     def info(self, msg, *args, **kwargs):
         formatted = (msg % kwargs) if kwargs else (msg % args)
         self.queue.put(formatted)
+        self.log.write(formatted + "\n")
 
     def warning(self, msg, *args, **kwargs):
         formatted = (msg % kwargs) if kwargs else (msg % args)
         self.queue.put('<font color="orange">%s</font>' % formatted)
+        self.log.write(formatted + "\n")
 
     def error(self, msg, *args, **kwargs):
         formatted = (msg % kwargs) if kwargs else (msg % args)
         self.queue.put('<font color="red">%s</font>' % formatted)
+        self.log.write(formatted + "\n")
 
     def critical(self, msg, *args, **kwargs):
         formatted = (msg % kwargs) if kwargs else (msg % args)
         self.queue.put('<font color="red">%s</font>' % formatted)
+        self.log.write(formatted + "\n")
 
 class XOMBIEThread(QtCore.QThread):
     """
