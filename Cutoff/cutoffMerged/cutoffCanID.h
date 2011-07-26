@@ -5,6 +5,9 @@
  * Date: Jun 18th 2011
  */
 
+#ifndef _CUTOFF_CAN_ID
+#define _CUTOFF_CAN_ID 
+
 #define CAN_EMER_BPS            0x021
 #define CAN_EMER_CUTOFF         0x022
 #define CAN_EMER_DRIVER_IO      0x023 
@@ -23,5 +26,8 @@
 #define CAN_HEART_OTHER2        0x047 
 #define CAN_HEART_OTHER3        0x048 
 
-#define CAN_CUTOFF_VOLT_CURR    0x523 
+#define CAN_CUTOFF_VOLT    0x523 
+#define CAN_CUTOFF_CURR    0x524 
 #define CAN_CUTOFF_NORMAL_SHUTDOWN 0x521
+
+#endif

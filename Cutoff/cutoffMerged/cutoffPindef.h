@@ -49,7 +49,9 @@ void initPins() {
   pinMode(LVRELAY, OUTPUT);
   pinMode(LEDFAIL, OUTPUT);
   pinMode(LED1, OUTPUT);
-  pinMode(LED2, OUTPUT);
+  digitalWrite(LED1, LOW);
+  pinMode(LED2, OUTPUT);  
+  digitalWrite(LED2, LOW);
   pinMode(IO_T1, INPUT); //OFF SWITCH
   digitalWrite(IO_T1, HIGH);
   pinMode(IO_T2, INPUT); //Song 1

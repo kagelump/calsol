@@ -4,55 +4,50 @@
  * Date: Jun 18th 2011
  */
 
-#define DEBUG_CAN
+//#define DEBUG_CAN
 #define DEBUG_MEASUREMENTS
 #define DEBUG
+
+#include <EEPROM.h>
 #include "cutoffHelper.h"
 #include "cutoffCanID.h"
 #include "cutoffPindef.h"
 
+
+inline void raiseWarning(){
+    digitalWrite(BUZZER, HIGH);
+    digitalWrite(LEDFAIL, HIGH);
+    warningTime = millis() + shortWarning;
+}
+
+inline void raiseError(){  
+    digitalWrite(BUZZER, HIGH);
+    digitalWrite(LEDFAIL, HIGH);
+    warningTime = millis() + longWarning;
+}
 
 void process_packet(CanMessage &msg) {
   last_can = millis();
   switch(msg.id) {     
     /* Add cases for each CAN message ID to be received*/
     
-    /* Emergencies */
-    case CAN_EMER_BPS:
-      bps_code = msg.data[0];
-      emergency = 1;
-      break; 
-    case CAN_EMER_DRIVER_IO:
-      emergency = 1;
-      break;
-    case CAN_EMER_DRIVER_CTL:
-      emergency = 1;
-      break;  
-    case CAN_EMER_TELEMETRY:
-      emergency = 1;
-      break;      
-    case CAN_EMER_OTHER1:
-      emergency = 1;
-      break;
-    case CAN_EMER_OTHER2:
-      emergency = 1;
-      break;
-    case CAN_EMER_OTHER3:
-      emergency = 1;
-      break;
-      
     /* Heartbeats */
+    /* to optimize execution time, ordered in frequency they are likely to occur */
     case CAN_HEART_BPS:
       last_heart_bps = millis();
-      bps_code = msg.data[0];
+      bps_code = msg.data[0];     
       if (msg.data[0] == 0x01) {
-        /* Warning flag */
-        warning = 1;
+        /* BPS Warning flag */
+        warning = 1;        
+        raiseWarning();
       } else if (msg.data[0] == 0x02) {
+        /* BPS Error */
         warning = 2;
+        raiseError();
       } else if (msg.data[0] == 0x04) {
-        /* Critical error flag */
-        emergency = 2;
+        /* BPS Critical error flag */
+        shutdownReason=BPS_ERROR;
+        emergency = 1;
       }
       break;
     case CAN_HEART_DRIVER_IO:
@@ -67,18 +62,57 @@ void process_packet(CanMessage &msg) {
     case CAN_HEART_DATALOGGER:
       last_heart_datalogger = millis();
       break;
+    
+    
+    /* Emergencies */
+    case CAN_EMER_BPS:
+      bps_code = msg.data[0];
+      emergency = 1;      
+      shutdownReason=BPS_EMERGENCY_OTHER;  //will shut down, then specify type of BPS ERRO     
+      break; 
+    case CAN_EMER_DRIVER_IO:
+      emergency = 1;
+      shutdownReason=IO_EMERGENCY;
+      break;
+    case CAN_EMER_DRIVER_CTL:
+      emergency = 1;
+      shutdownReason=CONTROLS_EMERGENCY;
+      break;  
+    case CAN_EMER_TELEMETRY:
+      emergency = 1;
+      shutdownReason=TELEMETRY_EMERGENCY;
+      break;      
+    case CAN_EMER_OTHER1:
+      emergency = 1;
+      shutdownReason=OTHER1_EMERGENCY;
+      break;
+    case CAN_EMER_OTHER2:
+      emergency = 1;
+      shutdownReason=OTHER2_EMERGENCY;
+      break;
+    case CAN_EMER_OTHER3:
+      emergency = 1;
+      shutdownReason=OTHER3_EMERGENCY;
+      break;      
+    
     default:
       break;
   }
 }
 
+void initialize(){
+  initPins();
+  initVariables();
+  lastShutdownReason(); //print out reason for last shutdown
+  /* Precharge */
+  state = PRECHARGE;  
+}
+
 void setup() {
   /* General init */
-  initPins();
   Serial.begin(115200);
-  initCAN();  
-  /* Precharge */
-  state = PRECHARGE;
+  initialize(); //initialize pins and variables to begin precharge state.  
+  initCAN();
 }
 
 void loop() {
@@ -107,8 +141,8 @@ void loop() {
     last_heart_cutoff = millis();
     sendHeartbeat();
   }
-  if (millis()-last_readings > 103){  // Send out system voltage and current measurements
-                                      //chose a weird number so it wouldn't always match up with the heartbeat timing    
+  if (millis() - last_readings > 103){  // Send out system voltage and current measurements
+                                        //chose a weird number so it wouldn't always match up with the heartbeat timing    
     last_readings = millis();
     sendReadings();
   }
@@ -116,6 +150,7 @@ void loop() {
       Serial.print("last_heart_bps: ");
       Serial.println(last_heart_bps);   
   #endif
+  delay(3); //only works if slowed down
     
 }
 

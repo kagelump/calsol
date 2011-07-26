@@ -14,6 +14,8 @@
 
 /* State variables */
 
+unsigned long startTime = 0;
+
 volatile long last_readings = 0;
 volatile long last_heart_bps = 0;
 volatile long last_heart_driver_io = 0;
@@ -34,18 +36,85 @@ enum STATES {
 } state;
 
 enum SHUTDOWNREASONS {
+  POWER_LOSS,
   KEY_OFF,
   BPS_HEARTBEAT,
   S_UNDERVOLT,
   S_OVERVOLT,
   S_OVERCURRENT,
-  BPS_EMERGENCY, //redundant?
+  BPS_UNDERVOLT,
+  BPS_OVERVOLT,
+  BPS_OVERTEMP,  
+  BPS_EMERGENCY_OTHER, //redundant?
   IO_EMERGENCY,
   CONTROLS_EMERGENCY,
   TELEMETRY_EMERGENCY,
-  OTHER_EMERGENCY,
+  OTHER1_EMERGENCY,
+  OTHER2_EMERGENCY,
+  OTHER3_EMERGENCY,
   BPS_ERROR //redundant?  
 } shutdownReason;
+
+void printShutdownReason(int shutdownReason){
+  Serial.print("Shutdown Reason: ");
+  switch (shutdownReason){
+    case POWER_LOSS:
+      Serial.println("Loss of power to cutoff.  Possibly due to bomb switch.");
+      break; 
+    case KEY_OFF:
+      Serial.println("Normal Shutdown.  Key in off position.");
+      break; 
+    case BPS_HEARTBEAT:
+      Serial.println("Missing BPS heartbeat.");
+      break; 
+    case S_UNDERVOLT:
+      Serial.println("High voltage line undervoltage.");
+      break; 
+    case S_OVERVOLT:
+      Serial.println("High voltage line overvoltage.");
+      break; 
+    case S_OVERCURRENT:
+      Serial.println("High voltage line overcurrent.");
+      break; 
+    case BPS_EMERGENCY_OTHER:
+      Serial.println("Battery Protection System Emergency: Other");
+      break; 
+    case BPS_UNDERVOLT:
+      Serial.println("BPS Emergency: Battery Undervoltage");
+      break; 
+    case BPS_OVERVOLT:
+      Serial.println("BPS Emergency: Battery Overvoltage");
+      break; 
+    case BPS_OVERTEMP:
+      Serial.println("BPS Emergency: Batteries Overtemperature");
+      break; 
+    case IO_EMERGENCY:
+      Serial.println("Input Output Boards Emergency.");
+      break;   
+    case CONTROLS_EMERGENCY:
+      Serial.println("Controls Boards Emergency.");
+      break;
+    case TELEMETRY_EMERGENCY:
+      Serial.println("Telemetry Board Emergency.");
+      break;
+    case OTHER1_EMERGENCY:
+      Serial.println("Other Board 1 Emergency.");
+      break;
+    case OTHER2_EMERGENCY:
+      Serial.println("Other Board 2 Emergency.");
+      break;
+    case OTHER3_EMERGENCY:
+      Serial.println("Other Board 3 Emergency.");
+      break;
+    case BPS_ERROR:
+      Serial.println("Battery Protection System Error.");
+      break; //redundant?
+    default:
+      Serial.println("Unknown Shutdown Reason.");
+      break;
+  }  
+}
+
 
 
 /*Buzzer and Music */
@@ -61,6 +130,8 @@ int currentNote=0;
 long endOfNote=0;
 
 void process_packet(CanMessage &msg);
+
+void initialize();
 
 void initCAN(){
    /* Can Initialization w/ filters */
@@ -134,7 +205,7 @@ long readV1() {
 //reads voltage from second voltage source (milliVolts)
 long readV2() {
   long reading = analogRead(V2);
-  long voltage = reading * 5 * 1000 / 1023 ;  
+  long voltage = reading * 5 *1000 / 1023 ;  
   // 2.7M+110K +470K/ 110K Because a fuse kept blowing We also added
   // in another resistor to limit the current (470K).
   voltage = voltage * (270+10.8) / 10.8; // 2.7M+110K / 110K   voltage divider
@@ -149,7 +220,7 @@ long readC1() {
   //Serial.println(gndRead);
   long c1 = cRead * 5 * 1000 / 1023;
   long cGND = gndRead * 5 * 1000 / 1023;
-  long current = 40 * (c1 - cGND);
+  long current = 40 * (c1 - cGND); //Scaled over 25 ohm resistor. multiplied by 1000 V -> mV conversion
   return current;
 }
 
@@ -159,54 +230,150 @@ long readC2() {
   long gndRead = analogRead(CGND);
   long c1 = cRead * 5 * 1000 / 1023;
   long cGND = gndRead * 5 * 1000 / 1023;
-  long current = 40 * (c1 - cGND);
-  //Serial.print("C2: ");
-  //Serial.print(current, DEC);
-  //Serial.print("mA\n");
+  long current = 40 * (c1 - cGND); //Scaled over 25 ohm resistor. multiplied by 1000 V -> mV conversion
   return current;
 }
 
 
 /* Turn of car if Off Switch is triggered */
-char checkOffSwitch(){      
-      if (digitalRead(IO_T1) == HIGH) {//normal shutdown initiated
-        state = TURNOFF;
-        shutdownReason=KEY_OFF;
-        return 1;
+char checkOffSwitch(){
+      //normal shutdown initiated
+      if (digitalRead(IO_T1) == HIGH) {
+        if (state!=TURNOFF){ 
+          Serial.print("key detected in off position\n");
+          delay(50); //
+        }
+        if (digitalRead(IO_T1) == HIGH) { //double check.  
+            //Had issues before when releasing key from precharge
+            state = TURNOFF;            
+            shutdownReason=KEY_OFF;
+            //Serial.print("Normal Shutdown\n");
+            return 1;
+        }
       }
       return 0;
 }
 
-/* Send system voltage/current over CAN */
-void sendReadings() {
+void checkReadings() {
+  CanMessage msg = CanMessage();
+  long batteryV = readV1();
+  long motorV = readV2();
+  long batteryC = readC1();
+  long otherC = readC2();
+  long undervoltage = 90000;  //90,000 mV
+  long overvoltage = 140000; //140,000 mV
+  long overcurrent1 = 60000; //60,000 mA
+  long overcurrent2 = 15000; //15,000 mA
+  if (batteryV <= undervoltage) {
+    shutdownReason=S_UNDERVOLT;
+    state = ERROR;
+    msg.id = CAN_EMER_CUTOFF;
+    msg.len = 1;
+    msg.data[0] = 0x02;
+    Can.send(msg);
+  }
+  else if (batteryV >= overvoltage || motorV >= overvoltage) {
+    shutdownReason=S_OVERVOLT;
+    state = ERROR;
+    msg.id = CAN_EMER_CUTOFF;
+    msg.len = 1;
+    msg.data[0] = 0x01;
+    Can.send(msg);
+  }
+/*  else if (batteryC >= overcurrent1 || otherC >= overcurrent2) {
+    shutdownReason=S_OVERCURRENT;
+    state = ERROR;
+    msg.id = CAN_EMER_CUTOFF;
+    msg.len = 1;
+    msg.data[0] = 0x04;
+    Can.send(msg);
+  }*/ //disabled until current sensors reliable
+}
+
+void floatEncoder(CanMessage &msg,float f1, float f2) {
+  float *floats = (float*)(msg.data);
+  floats[0] = f1;
+  floats[1] = f2;
+  /*
+  msg.data[0] = *((char *)&f1);
+  msg.data[1] = *(((char *)&f1)+1);
+  msg.data[2] = *(((char *)&f1)+2);
+  msg.data[3] = *(((char *)&f1)+3);
+  msg.data[4] = *((char *)&f2);
+  msg.data[5] = *(((char *)&f2)+1);
+  msg.data[6] = *(((char *)&f2)+2);
+  msg.data[7] = *(((char *)&f2)+3);
+  */
+}
+
+void sendVoltages(){
   CanMessage msg = CanMessage();
   long v1 = readV1();
   long v2 = readV2();
-  long c1 = readC1();
-  long c2 = readC2();
+  
+  float volt1 = v1;
+  float volt2 = v2;
   
   #ifdef DEBUG_MEASUREMENTS
       Serial.print(" V1: ");
       Serial.print(v1);
-      Serial.print(" V2: ");
-      Serial.print(v2);
-      Serial.print(" C1: ");
-      Serial.print(C1);
-      Serial.print(" C2: ");
-      Serial.println(C2);      
+      Serial.print("mV V2: ");
+      Serial.print(v2);     
   #endif
   
-  msg.id = CAN_CUTOFF_VOLT_CURR;
+  msg.id = CAN_CUTOFF_VOLT;
   msg.len = 8;
-  msg.data[0] = v1 & 0x00FF;
-  msg.data[1] = (v1 & 0xFF00) >> 8;
-  msg.data[2] = v2 & 0x0FF;
-  msg.data[3] = (v2 & 0xFF00) >> 8;
-  msg.data[4] = c1 & 0x00FF;
-  msg.data[5] = (c1 & 0xFF00) >> 8;
-  msg.data[6] = c2 & 0x00FF;
-  msg.data[7] = (c2 & 0xFF00) >> 8;
+  floatEncoder(msg, volt1, volt2);
+  /*
+  msg.data[0] = volt1 & 0x00FF;
+  msg.data[1] = (volt1 >>8 ) & 0x00FF;
+  msg.data[2] = (volt1 >>16) & 0x00FF;
+  msg.data[3] = (volt1 >>24) & 0x00FF;
+  msg.data[4] = volt2 & 0x00FF;
+  msg.data[5] = (volt2 >>8 ) & 0x00FF;
+  msg.data[6] = (volt2 >>16) & 0x00FF;
+  msg.data[7] = (volt2 >>24) & 0x00FF;
+  */
   Can.send(msg);
+  
+}
+
+void sendCurrents(){
+  CanMessage msg = CanMessage();
+  long c1 = readC1();
+  long c2 = readC2();
+  
+  float curr1 = c1;
+  float curr2 = c2;
+  
+  #ifdef DEBUG_MEASUREMENTS
+      Serial.print("mV C1: ");
+      Serial.print(C1);
+      Serial.print(" C2: ");
+      Serial.println(C2); 
+  #endif
+  
+  msg.id = CAN_CUTOFF_CURR;
+  msg.len = 8;
+  floatEncoder(msg, curr1, curr2);
+  /*
+  msg.data[0] = curr1 & 0x00FF;
+  msg.data[1] = (curr1 >>8 ) & 0x00FF;
+  msg.data[2] = (curr1 >>16) & 0x00FF;
+  msg.data[3] = (curr1 >>24) & 0x00FF;
+  msg.data[4] = curr2 & 0x00FF;
+  msg.data[5] = (curr2 >>8 ) & 0x00FF;
+  msg.data[6] = (curr2 >>16) & 0x00FF;
+  msg.data[7] = (curr2 >>24) & 0x00FF;
+  */
+  Can.send(msg);
+}
+
+
+/* Send system voltage/current over CAN */
+void sendReadings() {
+  sendVoltages();
+  sendCurrents();  
 }
 
 void sendHeartbeat() {
@@ -217,20 +384,40 @@ void sendHeartbeat() {
   Can.send(msg);
 }
 
+void initVariables(){
+  last_readings = 0;
+  last_heart_bps = 0;
+  last_heart_driver_io = 0;
+  last_heart_driver_ctl = 0;
+  last_heart_telemetry = 0;
+  last_heart_datalogger = 0;
+  last_heart_cutoff = 0;
+  last_can = 0;
+  emergency = 0;
+  warning = 0;
+  bps_code = 0;
+  
+  
+  startTime=millis();
+}
+
 /* Does the precharge routine: Wait for motor voltage to reach a threshold,
  * then turns the car to the on state by switching on both relays */
 void do_precharge() {
+  digitalWrite(LED1, HIGH);
   last_heart_bps = 0; //reset heartbeat tracking
   long prechargeV = (readV1() / 1000.0); //milliVolts -> Volts
   long batteryV = (readV2() / 1000.0); //milliVolts -> Volts
   int prechargeTarget = 100; //~100V ?
   int voltageDiff= abs(prechargeV-batteryV);
   
-  if ( digitalRead(IO_T1) ) {
+  if ( checkOffSwitch() ) {
     /* Off switch engaged, Transition to off */
-    state = TURNOFF;
+    state = TURNOFF; //actually redundant
+    return;
   }
-  else if ( prechargeV < prechargeTarget ) { //should replace with voltageDiff (compare battery and motor voltage)
+  else if ((prechargeV < prechargeTarget)  || (voltageDiff>3) 
+      || (millis()-startTime < 1000)) { //wait for precharge to bring motor voltage up to battery voltage  
     /* Precharge incomplete */
     #ifdef DEBUG
       Serial.print("Precharge State -- Motor Voltage: ");
@@ -238,6 +425,7 @@ void do_precharge() {
       Serial.print("V  Battery Voltage: ");
       Serial.print(batteryV, DEC);
       Serial.print("V\n");
+      delay(100);
     #endif
     state = PRECHARGE;
   }
@@ -287,26 +475,12 @@ void do_precharge() {
 void do_normal() {
   CanMessage msg = CanMessage();
   if ( emergency ) {
-    /* We received an critical error packet, set car to ERROR state */
-    //#ifdef DEBUG
-    //  Serial.print("Emergency packet received: ");
-    //  Serial.print(emergency);
-    //  Serial.print("\tBPS Code: ");
-    //  if (bps_code == 0x01)
-    //    Serial.println("Overvolt Error");
-    //  else if (bps_code == 0x02)
-    //    Serial.println("Undervolt Error");
-    //  else if (bps_code == 0x04)
-    //    Serial.println("Overtemp Error");
-    //  else
-    //    Serial.println(bps_code & 0xFF, HEX);
-    //#endif
     state = ERROR;
     //msg.id = CAN_EMER_CUTOFF;
     //msg.len = 1;
     //msg.data[0] = 0x08;
     //Can.send(msg);
-  } else if ( digitalRead(IO_T1) ) {
+  } else if ( checkOffSwitch() ) {
     #ifdef DEBUG
       Serial.println("Switch off. Normal -> Turnoff");
     #endif
@@ -314,32 +488,48 @@ void do_normal() {
     state = TURNOFF;
   } else if ( millis() - last_heart_bps > 1000 ) {
     /* Did not receive heartbeat from BPS for 1 second */
-    #ifdef DEBUG
-      Serial.println("Did not receive heartbeat from BPS for 1 sec. ERROR");
-    #endif
     msg.id = CAN_EMER_CUTOFF;
     msg.len = 1;
     msg.data[0] = 0x10;
     Can.send(msg);
+    shutdownReason = BPS_HEARTBEAT;
     state = ERROR;
   }
+}
+
+void lastShutdownReason(){
+  int memoryIndex = EEPROM.read(0);  
+  int lastReason = EEPROM.read(memoryIndex);
+  printShutdownReason(lastReason);
+}
+
+void recordShutdownReason(){
+  int memoryIndex = EEPROM.read(0); 
+  if (memoryIndex >= 50){ memoryIndex =0;}
+  EEPROM.write(0, memoryIndex+1);
+  EEPROM.write(memoryIndex+1, shutdownReason);
 }
 
 /* Turn the car off normally */
 void do_turnoff() {
   Can.send(CanMessage(CAN_CUTOFF_NORMAL_SHUTDOWN));
   /* Will infinite loop in "off" state as long as key switch is off */
+  
+  recordShutdownReason();
+  printShutdownReason(shutdownReason);
+  
   while (1) {
     digitalWrite(RELAY1, LOW);
     digitalWrite(RELAY2, LOW);
     digitalWrite(RELAY3, LOW);
     digitalWrite(LVRELAY, LOW);
     //if key is no longer in the off position allow for car to restart
-    if ( !digitalRead(IO_T1) ) { 
+    if ( !checkOffSwitch() ) { 
       //allow to restart car if powered by USB
-      state = PRECHARGE;  
+      initialize();
+      //state = PRECHARGE;  //included in initialize function
       break;
-    }
+    }    
   }
 }
 
@@ -353,6 +543,20 @@ void do_error() {
   digitalWrite(LEDFAIL, HIGH);
   digitalWrite(BUZZER, HIGH); //If you simply do this, the buzzer will not shut off.
   
+  if (shutdownReason==BPS_EMERGENCY_OTHER){  
+  #ifdef DEBUG
+     Serial.print("\tBPS Code: ");  
+     Serial.println(bps_code & 0xFF, HEX); //print identifier of BPS error
+  #endif
+      if (bps_code == 0x01)
+        shutdownReason=BPS_OVERVOLT;
+      else if (bps_code == 0x02)
+        shutdownReason=BPS_UNDERVOLT;
+      else if (bps_code == 0x04)
+        shutdownReason=BPS_OVERTEMP;
+      else
+        shutdownReason=BPS_EMERGENCY_OTHER;
+  }  
   
   if (shutdownReason==BPS_HEARTBEAT){
     loadBadRomance();
@@ -360,7 +564,8 @@ void do_error() {
   else{
     loadTetris(); 
   }
-  
+  recordShutdownReason();
+  printShutdownReason(shutdownReason);
   /* Trap the code execution here on error */
   while (1) {
     digitalWrite(RELAY1, LOW);
