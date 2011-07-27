@@ -43,17 +43,19 @@ void setup() {
   Can.begin(1000);
   CanBufferInit();
   Serial.begin(115200);
+  Serial.println("BPS Monitoring Board Online: Awaiting CAN messages");
 }
 
 void loop() {
-  if ((millis() - last_time > 100) && newpacket) {
-    newpacket=0;
+  if (((millis() - last_time) > 100) && newpacket) {
+    newpacket=0;    
+    last_time=millis();
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 12; j++) {
         if (!((i==2)&&(j>=9))){
-          Serial.print(i);
+          Serial.print(i+1);
           Serial.print(".");
-          Serial.print(j);
+          Serial.print(j+1);
           Serial.print(": ");
           Serial.print(voltage[i][j]);
           Serial.println("V\t");
