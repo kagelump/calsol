@@ -563,8 +563,9 @@ void receiveCAN() {
       if (msg.data[2] & 0x02) {
         // Software overcurrent occured, lets send a reset packet to Tritium
         Can.send(CanMessage(0x503));
-        if (overcurrent_scale > 0.6)
+        if (overcurrent_scale > 0.6 && millis() - time_of_last_oc > 50)
           overcurrent_scale -= 0.02;
+          time_of_last_oc = millis();
       }
     }
     can_count++;
