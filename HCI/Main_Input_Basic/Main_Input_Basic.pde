@@ -3,8 +3,8 @@
 // Written by: Ryan Tseng
 
 // Pin declarations
-#define ACCEL_ANALOGIN 27
-#define BRAKE_ANALOGIN 28
+#define ACCEL_ANALOGIN 28
+#define BRAKE_ANALOGIN 27
 
 // Global Variables
 long last_time;
@@ -24,17 +24,17 @@ void setup() {
   last_time = millis();
   
   // Send Reset commmand to Tritium
-  Can.send(CanMessage(0x403));
+  Can.send(CanMessage(0x503));
   delay(100);
   
   // Send Motor power command to Tritium
   two_floats packet;
   packet.f[1] = 0.5;  // 50% of bus power
-  Can.send(CanMessage(0x402, packet.c));
+  Can.send(CanMessage(0x502, packet.c));
 }
 
 void loop() {
-  if (millis() - last_time > 100) {
+  if (millis() - last_time > 75) {
     last_time = millis();
     // Get pedal position (0 - 1023).  fAccel is 0.0 - 1.0
     int accel = analogRead(ACCEL_ANALOGIN);
@@ -52,7 +52,7 @@ void loop() {
     Serial.print(packet.f[0]);
     Serial.print("\t");
     Serial.println(packet.f[1]);
-    CanMessage msg = CanMessage(0x401, packet.c);
+    CanMessage msg = CanMessage(0x501, packet.c);
     Can.send(msg);
   }
 }
