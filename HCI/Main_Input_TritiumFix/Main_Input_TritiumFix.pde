@@ -532,7 +532,7 @@ CanMessage sendMotorControl() {
   CanMessage outputMsg = CanMessage();
   outputMsg.id = TritiumMotor;
   outputMsg.len = 8;
-  floatEncoder(outputMsg,setspeed,voltage);
+  floatEncoder(outputMsg,setspeed,overcurrent_scale*voltage);
   if(debug){
   Serial.print("speed =");
   Serial.println(setspeed);
