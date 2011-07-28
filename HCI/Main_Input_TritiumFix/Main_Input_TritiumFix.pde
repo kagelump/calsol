@@ -80,6 +80,10 @@ char buff[]= "0000000000";
 boolean rightSet = false;
 boolean leftSet = false;
 
+// This is used to scale down our max output if an OC error occurs
+float overcurrent_scale = 1.0;
+// Time since the last Overcurrent Error, in millis()
+long time_of_last_oc = 0;
 
 void display (int x);
 void turnSignals(boolean rTurnSwitchstate, boolean lTurnSwitchstate);
@@ -108,20 +112,22 @@ void setup() {
 }
 
 void loop() {
- 
-    receiveCAN();
+  // Reset overcurrent scale after 10 seconds if its below 1.0
+  if (overcurrent_scale != 1.0 && millis() - time_of_last_oc > 10000)
+    overcurrent_scale = 1.0;
+  receiveCAN();
   setInputs();
   accel();
- cruiseControl(); // cruise control overrides measurements made by accel
+  cruiseControl(); // cruise control overrides measurements made by accel
   COMToOthers();
   if (!digitalRead(HAZ_SWITCH)) {
     turnSignals(true,true);
     rightSet = true;
     leftSet = true; 
   } else {
-     rightSet = (digitalRead(RTURN_SWITCH) == LOW);                     
-     leftSet = (digitalRead(LTURN_SWITCH) == LOW);
-     turnSignals(rightSet, leftSet); 
+    rightSet = (digitalRead(RTURN_SWITCH) == LOW);                     
+    leftSet = (digitalRead(LTURN_SWITCH) == LOW);
+    turnSignals(rightSet, leftSet); 
   }
   km = digitalRead(speedUnitToggle);
   digitalWrite(speedUnitLED, km);
@@ -129,8 +135,6 @@ void loop() {
     displayNum (recordedSpeed*3.6); //currently km/hr
   else
     displayNum(recordedSpeed*2.2369); // 1 m/s = 2.2369 mph
- 
- // testButtons();
 }
 
 /*******************************
@@ -142,13 +146,13 @@ array to display a number between
 void displayNum (int x) { 
   boolean hundred = x >= 100;	
   x = x % 100;
-	if (x < 0)
-		x = -x;
-	digit[0] = digitarr[x / 10];
-	digit[1] = digitarr[x % 10];
+  if (x < 0)
+    x = -x;
+  digit[0] = digitarr[x / 10];
+  digit[1] = digitarr[x % 10];
   digitalWrite(CLOCK_PIN, LOW);
- digitalWrite(LATCH_PIN,LOW);
- digitalWrite(OUTPUT_PIN,HIGH);   
+  digitalWrite(LATCH_PIN,LOW);
+  digitalWrite(OUTPUT_PIN,HIGH);   
   for(int i = 0; i < 2; i++){
     digitalWrite(DATA_PIN,hundred); 
     digitalWrite(CLOCK_PIN, HIGH );
@@ -551,8 +555,18 @@ void receiveCAN() {
   if (CanBufferSize()) {               // If there is more than 1 packet in the CAN Buffer
     CanMessage msg = CanBufferRead();  // Local CanMessage object to receive data into
     // Switch based on CAN ID
-    if (msg.id ==  0x403)
+    if (msg.id ==  0x403) {
+      // Speed Information
       recordedSpeed = floatDecode(msg);
+    } else if (msg.id == 0x401) {
+      // Status information, we use this to check for overcurrent issues
+      if (msg.data[2] & 0x02) {
+        // Software overcurrent occured, lets send a reset packet to Tritium
+        Can.send(CanMessage(0x503));
+        if (overcurrent_scale > 0.6)
+          overcurrent_scale -= 0.02;
+      }
+    }
     can_count++;
   }
 }
