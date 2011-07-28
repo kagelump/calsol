@@ -150,6 +150,8 @@ int badRomanceDuration[] = {
   8, 8, 4, 8, 8, 8, 8,
   4, 4, 8, 8, 8, 8,
   8, 8, 8, 8, 8, 8, 4};
+  
+
 
 int badRomanceSize = 65;
 

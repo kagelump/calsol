@@ -4,7 +4,7 @@
  * Date: Jun 18th 2011
  */
 
-//#define DEBUG_CAN
+#define DEBUG_CAN
 #define DEBUG_MEASUREMENTS
 #define DEBUG
 
@@ -26,6 +26,8 @@ inline void raiseError(){
     warningTime = millis() + longWarning;
 }
 
+int numHeartbeats = 0;
+
 void process_packet(CanMessage &msg) {
   last_can = millis();
   switch(msg.id) {     
@@ -35,6 +37,7 @@ void process_packet(CanMessage &msg) {
     /* to optimize execution time, ordered in frequency they are likely to occur */
     case CAN_HEART_BPS:
       last_heart_bps = millis();
+      numHeartbeats++;
       bps_code = msg.data[0];     
       if (msg.data[0] == 0x01) {
         /* BPS Warning flag */
@@ -151,6 +154,16 @@ void loop() {
       Serial.println(last_heart_bps);   
   #endif
   delay(3); //only works if slowed down
-    
+  if (millis()-last_printout > 200){
+    Serial.println(numHeartbeats);
+    numHeartbeats=0;
+    last_printout=millis();
+  }
+  if(Serial.available()){
+    char letter= Serial.read();
+    if(letter=='l'){
+      shutdownLog();
+    }
+  }
 }
 

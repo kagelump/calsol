@@ -16,14 +16,15 @@
 
 unsigned long startTime = 0;
 
-volatile long last_readings = 0;
-volatile long last_heart_bps = 0;
-volatile long last_heart_driver_io = 0;
-volatile long last_heart_driver_ctl = 0;
-volatile long last_heart_telemetry = 0;
-volatile long last_heart_datalogger = 0;
-volatile long last_heart_cutoff = 0;
-volatile long last_can = 0;
+volatile unsigned long last_readings = 0;
+volatile unsigned long last_heart_bps = 0;
+volatile unsigned long last_heart_driver_io = 0;
+volatile unsigned long last_heart_driver_ctl = 0;
+volatile unsigned long last_heart_telemetry = 0;
+volatile unsigned long last_heart_datalogger = 0;
+volatile unsigned long last_heart_cutoff = 0;
+volatile unsigned long last_can = 0;
+volatile unsigned long last_printout = 0;
 volatile int emergency = 0;
 volatile int warning = 0;
 volatile int bps_code = 0;
@@ -119,8 +120,8 @@ void printShutdownReason(int shutdownReason){
 
 /*Buzzer and Music */
 unsigned long warningTime = 0; //play buzzer/keep LED on until this time is reached
-int shortWarning = 100; //play buzzer for a short duration
-int longWarning = 500; //play buzzer for slightly longer duration
+int shortWarning = 200; //play buzzer for a short duration
+int longWarning = 600; //play buzzer for slightly longer duration
 
 boolean playingSong = false;
 int* duration;
@@ -150,7 +151,7 @@ void tone(uint8_t _pin, unsigned int frequency, unsigned long duration);
 
 void playSongs(){
 //shut off buzzer/LED if no longer sending warning
-        if (millis() > warningTime && !playingSong) {
+        if ((millis() > (warningTime - 100)) && !playingSong) {
           digitalWrite(LEDFAIL, LOW);
           digitalWrite(BUZZER, LOW);
         }
@@ -501,6 +502,18 @@ void lastShutdownReason(){
   int memoryIndex = EEPROM.read(0);  
   int lastReason = EEPROM.read(memoryIndex);
   printShutdownReason(lastReason);
+}
+
+void shutdownLog(){
+  int memoryIndex = EEPROM.read(0);  
+  for(int i=1;i<50; i++){ 
+    int lastReason = EEPROM.read(memoryIndex);
+    printShutdownReason(lastReason);
+    memoryIndex++;
+    if (memoryIndex>50){
+      memoryIndex=1;
+    }
+  }
 }
 
 void recordShutdownReason(){
