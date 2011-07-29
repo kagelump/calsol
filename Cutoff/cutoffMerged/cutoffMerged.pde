@@ -4,7 +4,7 @@
  * Date: Jun 18th 2011
  */
 
-#define DEBUG_CAN
+//#define DEBUG_CAN
 #define DEBUG_MEASUREMENTS
 #define DEBUG
 
@@ -108,7 +108,13 @@ void initialize(){
   initVariables();
   lastShutdownReason(); //print out reason for last shutdown
   /* Precharge */
-  state = PRECHARGE;  
+  lastState=TURNOFF;//initialize in off state if key is off.
+  if (checkOffSwitch()){
+    state=TURNOFF;
+  }
+  else{
+    state = PRECHARGE; //boot up the car
+  }
 }
 
 void setup() {
@@ -140,6 +146,8 @@ void loop() {
         do_error();
         break;
     }
+    
+  /*This code cannot change the state */
   if (millis() - last_heart_cutoff > 200) {  //Send out the cutoff heartbeat to anyone listening.  
     last_heart_cutoff = millis();
     sendHeartbeat();
@@ -150,15 +158,18 @@ void loop() {
     sendReadings();
   }
   #ifdef DEBUG_CAN
-      Serial.print("last_heart_bps: ");
-      Serial.println(last_heart_bps);   
-  #endif
-  delay(3); //only works if slowed down
-  if (millis()-last_printout > 200){
-    Serial.println(numHeartbeats);
+      //Serial.print("last_heart_bps: "); //too spammy
+      //Serial.println(last_heart_bps);   
+  
+  
+  if (millis()-last_printout > 1000){ //print out number of heartbeats received each second
+    Serial.print("BPS heartbeats/sec: ");
+	Serial.println(numHeartbeats);
     numHeartbeats=0;
     last_printout=millis();
   }
+#endif
+  */
   if(Serial.available()){
     char letter= Serial.read();
     if(letter=='l'){

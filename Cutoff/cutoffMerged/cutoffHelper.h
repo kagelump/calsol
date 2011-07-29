@@ -36,6 +36,8 @@ enum STATES {
   ERROR
 } state;
 
+enum STATES lastState; //keep track of last state.  This simplifies our state machine a little, but is really adding more states.
+
 enum SHUTDOWNREASONS {
   POWER_LOSS,
   KEY_OFF,
@@ -409,7 +411,7 @@ void do_precharge() {
   last_heart_bps = 0; //reset heartbeat tracking
   long prechargeV = (readV1() / 1000.0); //milliVolts -> Volts
   long batteryV = (readV2() / 1000.0); //milliVolts -> Volts
-  int prechargeTarget = 100; //~100V ?
+  int prechargeTarget = 90; //~100V ?
   int voltageDiff= abs(prechargeV-batteryV);
   
   if ( checkOffSwitch() ) {
@@ -468,6 +470,7 @@ void do_precharge() {
     digitalWrite(BUZZER, LOW);
     
     /* State Transition */
+    lastState= PRECHARGE;
     state = NORMAL;
   }
 }
@@ -475,6 +478,11 @@ void do_precharge() {
 /* Car running state, check for errors, otherwise continue operation */
 void do_normal() {
   CanMessage msg = CanMessage();
+  lastState=NORMAL;
+  
+  volatile unsigned long LastHeartbeat= last_heart_bps; //just being super careful with type definitions.
+  volatile unsigned long timeNow = millis();
+  volatile long timeLastHeartbeat = timeNow - LastHeartbeat; //must be signed, otherwise we occasionally get negative value.
   if ( emergency ) {
     state = ERROR;
     //msg.id = CAN_EMER_CUTOFF;
@@ -487,7 +495,7 @@ void do_normal() {
     #endif
     /* Check if switch is on "On" position */
     state = TURNOFF;
-  } else if ( millis() - last_heart_bps > 1000 ) {
+  } else if ( timeLastHeartbeat > 1000) {
     /* Did not receive heartbeat from BPS for 1 second */
     msg.id = CAN_EMER_CUTOFF;
     msg.len = 1;
@@ -495,6 +503,12 @@ void do_normal() {
     Can.send(msg);
     shutdownReason = BPS_HEARTBEAT;
     state = ERROR;
+    //Serial.print("Last heartbeat:");
+    //Serial.println(LastHeartbeat); 
+    //Serial.print("time now:");   
+    //Serial.println(timeNow);
+    //Serial.print("time since heartbeat:");
+    //Serial.println(timeLastHeartbeat);    
   }
 }
 
@@ -525,29 +539,32 @@ void recordShutdownReason(){
 
 /* Turn the car off normally */
 void do_turnoff() {
-  Can.send(CanMessage(CAN_CUTOFF_NORMAL_SHUTDOWN));
-  /* Will infinite loop in "off" state as long as key switch is off */
-  
-  recordShutdownReason();
-  printShutdownReason(shutdownReason);
-  
-  while (1) {
-    digitalWrite(RELAY1, LOW);
-    digitalWrite(RELAY2, LOW);
-    digitalWrite(RELAY3, LOW);
-    digitalWrite(LVRELAY, LOW);
-    //if key is no longer in the off position allow for car to restart
-    if ( !checkOffSwitch() ) { 
-      //allow to restart car if powered by USB
-      initialize();
-      //state = PRECHARGE;  //included in initialize function
-      break;
-    }    
+  if (lastState!= TURNOFF){
+    lastState=TURNOFF;
+    Can.send(CanMessage(CAN_CUTOFF_NORMAL_SHUTDOWN));
+    /* Will infinite loop in "off" state as long as key switch is off */
+    
+    recordShutdownReason();
+    printShutdownReason(shutdownReason);
+    
   }
+  
+  digitalWrite(RELAY1, LOW);
+  digitalWrite(RELAY2, LOW);
+  digitalWrite(RELAY3, LOW);
+  digitalWrite(LVRELAY, LOW);
+  //if key is no longer in the off position allow for car to restart
+  if ( !checkOffSwitch() ) { 
+    //allow to restart car if powered by USB
+    initialize();
+    //state = PRECHARGE;  //included in initialize function
+  }    
+  
 }
 
 /* Something bad has happened, we must beep loudly and turn the car off */
 void do_error() {
+  if (lastState!=ERROR){
   //turn off relays first
   digitalWrite(RELAY1, LOW);
   digitalWrite(RELAY2, LOW);
@@ -579,15 +596,16 @@ void do_error() {
   }
   recordShutdownReason();
   printShutdownReason(shutdownReason);
+  }
   /* Trap the code execution here on error */
-  while (1) {
+  
     digitalWrite(RELAY1, LOW);
     digitalWrite(RELAY2, LOW);
     digitalWrite(RELAY3, LOW);
     digitalWrite(LVRELAY, LOW);
     digitalWrite(LEDFAIL, HIGH); 
     playSongs();
-  }
+    lastState=ERROR;
 }
 
 #endif
