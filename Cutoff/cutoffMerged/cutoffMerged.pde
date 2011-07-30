@@ -14,17 +14,7 @@
 #include "cutoffPindef.h"
 
 
-inline void raiseWarning(){
-    digitalWrite(BUZZER, HIGH);
-    digitalWrite(LEDFAIL, HIGH);
-    warningTime = millis() + shortWarning;
-}
 
-inline void raiseError(){  
-    digitalWrite(BUZZER, HIGH);
-    digitalWrite(LEDFAIL, HIGH);
-    warningTime = millis() + longWarning;
-}
 
 int numHeartbeats = 0;
 
@@ -41,12 +31,10 @@ void process_packet(CanMessage &msg) {
       bps_code = msg.data[0];     
       if (msg.data[0] == 0x01) {
         /* BPS Warning flag */
-        warning = 1;        
-        raiseWarning();
+        warning = 1;   
       } else if (msg.data[0] == 0x02) {
         /* BPS Error */
         warning = 2;
-        raiseError();
       } else if (msg.data[0] == 0x04) {
         /* BPS Critical error flag */
         shutdownReason=BPS_ERROR;
@@ -158,18 +146,17 @@ void loop() {
     sendReadings();
   }
   #ifdef DEBUG_CAN
-      //Serial.print("last_heart_bps: "); //too spammy
+      //Serial.print("last_heart_bps: ");
       //Serial.println(last_heart_bps);   
   
   
-  if (millis()-last_printout > 1000){ //print out number of heartbeats received each second
-    Serial.print("BPS heartbeats/sec: ");
-	Serial.println(numHeartbeats);
+  if (millis()-last_printout > 1000){
+    Serial.print("Last Heartbeat:");
+    Serial.println(numHeartbeats);
     numHeartbeats=0;
     last_printout=millis();
   }
-#endif
-  */
+  #endif
   if(Serial.available()){
     char letter= Serial.read();
     if(letter=='l'){

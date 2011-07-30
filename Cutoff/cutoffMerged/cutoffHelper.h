@@ -122,15 +122,17 @@ void printShutdownReason(int shutdownReason){
 
 /*Buzzer and Music */
 unsigned long warningTime = 0; //play buzzer/keep LED on until this time is reached
-int shortWarning = 200; //play buzzer for a short duration
-int longWarning = 600; //play buzzer for slightly longer duration
+unsigned long shortWarning = 100; //play buzzer for a short duration
+unsigned long longWarning = 500; //play buzzer for slightly longer duration
 
 boolean playingSong = false;
+boolean playingError = false;
 int* duration;
 int* notes;
 int songSize;
 int currentNote=0;
 long endOfNote=0;
+float songTempo =1;
 
 void process_packet(CanMessage &msg);
 
@@ -153,22 +155,48 @@ void tone(uint8_t _pin, unsigned int frequency, unsigned long duration);
 
 void playSongs(){
 //shut off buzzer/LED if no longer sending warning
-        if ((millis() > (warningTime - 100)) && !playingSong) {
+        if (playingError &&(millis() > warningTime)){
           digitalWrite(LEDFAIL, LOW);
           digitalWrite(BUZZER, LOW);
         }
+        if (playingError &&(millis() > (warningTime+1000))) { 
+          playingError=false; //turn off the warning.  Allowing another warning to be raised.
+        }
+        else if (playingSong && endOfNote < millis()) {
         //play some tunes
-        if (playingSong && endOfNote < millis()) {
-          int noteDuration = 1000/duration[currentNote];
+          int noteDuration = songTempo*1000/duration[currentNote]; 
           tone(BUZZER, notes[currentNote], noteDuration);
-          int pause = noteDuration * 1.30;
+          int pause = noteDuration * 1.30 ;
           endOfNote = millis() + pause;
           currentNote++;
           if (currentNote >= songSize) {
             playingSong = false;
             digitalWrite(BUZZER, LOW);
           }
+          songTempo=1;
         }
+}
+
+inline void raiseWarning(){
+  if (!playingError){  
+    playingError =true;
+    digitalWrite(BUZZER, HIGH);
+    digitalWrite(LEDFAIL, HIGH);
+    warningTime = millis() + shortWarning;
+    Serial.println("BPS Warning: Level 1");
+    warning=0; //reset warning
+  }
+}
+
+inline void raiseError(){
+  if (!playingError){
+    playingError =true;  
+    digitalWrite(BUZZER, HIGH);
+    digitalWrite(LEDFAIL, HIGH);
+    warningTime = millis() + longWarning;
+    Serial.println("BPS Warning: Level 2");
+    warning=0;
+  }
 }
 
 //play tetris
@@ -190,7 +218,8 @@ void loadBadRomance(){
         duration = badRomanceDuration;
         notes = badRomanceNotes;
         songSize = badRomanceSize;
-        currentNote = 0;
+        songTempo= .5; //play at half speed
+        currentNote = 0;        
       }
 }
 
@@ -263,8 +292,8 @@ void checkReadings() {
   long motorV = readV2();
   long batteryC = readC1();
   long otherC = readC2();
-  long undervoltage = 90000;  //90,000 mV
-  long overvoltage = 140000; //140,000 mV
+  long undervoltage = 94500;  //90,000 mV
+  long overvoltage = 143500; //140,000 mV
   long overcurrent1 = 60000; //60,000 mA
   long overcurrent2 = 15000; //15,000 mA
   if (batteryV <= undervoltage) {
@@ -480,22 +509,22 @@ void do_normal() {
   CanMessage msg = CanMessage();
   lastState=NORMAL;
   
-  volatile unsigned long LastHeartbeat= last_heart_bps; //just being super careful with type definitions.
+  volatile unsigned long LastHeartbeat= last_heart_bps;
   volatile unsigned long timeNow = millis();
-  volatile long timeLastHeartbeat = timeNow - LastHeartbeat; //must be signed, otherwise we occasionally get negative value.
-  if ( emergency ) {
+  volatile long timeLastHeartbeat = timeNow - LastHeartbeat;
+  if ( emergency ) { //check for emergency
     state = ERROR;
     //msg.id = CAN_EMER_CUTOFF;
     //msg.len = 1;
     //msg.data[0] = 0x08;
     //Can.send(msg);
-  } else if ( checkOffSwitch() ) {
+  } else if ( checkOffSwitch() ) { //check for off switch
     #ifdef DEBUG
       Serial.println("Switch off. Normal -> Turnoff");
     #endif
     /* Check if switch is on "On" position */
     state = TURNOFF;
-  } else if ( timeLastHeartbeat > 1000) {
+  } else if ( timeLastHeartbeat > 1000) { //check for missing bps heartbeats
     /* Did not receive heartbeat from BPS for 1 second */
     msg.id = CAN_EMER_CUTOFF;
     msg.len = 1;
@@ -509,7 +538,13 @@ void do_normal() {
     //Serial.println(timeNow);
     //Serial.print("time since heartbeat:");
     //Serial.println(timeLastHeartbeat);    
+  } else if (warning ==1){ //check for level 1 warning
+      raiseWarning();
   }
+  else if (warning ==2){ //check for level 2 warning: error
+      raiseError();
+  }
+  
 }
 
 void lastShutdownReason(){
@@ -564,20 +599,20 @@ void do_turnoff() {
 
 /* Something bad has happened, we must beep loudly and turn the car off */
 void do_error() {
-  if (lastState!=ERROR){
-  //turn off relays first
-  digitalWrite(RELAY1, LOW);
-  digitalWrite(RELAY2, LOW);
-  digitalWrite(RELAY3, LOW);
-  digitalWrite(LVRELAY, LOW);
-  digitalWrite(LEDFAIL, HIGH);
-  digitalWrite(BUZZER, HIGH); //If you simply do this, the buzzer will not shut off.
-  
-  if (shutdownReason==BPS_EMERGENCY_OTHER){  
-  #ifdef DEBUG
-     Serial.print("\tBPS Code: ");  
-     Serial.println(bps_code & 0xFF, HEX); //print identifier of BPS error
-  #endif
+  if (lastState!=ERROR){  //do these only when entering the error state
+    //turn off relays first
+    digitalWrite(RELAY1, LOW);
+    digitalWrite(RELAY2, LOW);
+    digitalWrite(RELAY3, LOW);
+    digitalWrite(LVRELAY, LOW);
+    digitalWrite(LEDFAIL, HIGH);
+    digitalWrite(BUZZER, HIGH); //If you simply do this, the buzzer will not shut off.
+    
+    if (shutdownReason==BPS_EMERGENCY_OTHER){  
+      #ifdef DEBUG
+         Serial.print("\tBPS Code: ");  
+         Serial.println(bps_code & 0xFF, HEX); //print identifier of BPS error
+      #endif
       if (bps_code == 0x01)
         shutdownReason=BPS_OVERVOLT;
       else if (bps_code == 0x02)
@@ -586,26 +621,25 @@ void do_error() {
         shutdownReason=BPS_OVERTEMP;
       else
         shutdownReason=BPS_EMERGENCY_OTHER;
-  }  
+    }    
+    if (shutdownReason==BPS_HEARTBEAT){
+      loadBadRomance();
+    }
+    else{
+      loadTetris(); 
+    }
+    recordShutdownReason();
+    printShutdownReason(shutdownReason);
+  }
   
-  if (shutdownReason==BPS_HEARTBEAT){
-    loadBadRomance();
-  }
-  else{
-    loadTetris(); 
-  }
-  recordShutdownReason();
-  printShutdownReason(shutdownReason);
-  }
   /* Trap the code execution here on error */
-  
-    digitalWrite(RELAY1, LOW);
-    digitalWrite(RELAY2, LOW);
-    digitalWrite(RELAY3, LOW);
-    digitalWrite(LVRELAY, LOW);
-    digitalWrite(LEDFAIL, HIGH); 
-    playSongs();
-    lastState=ERROR;
+  digitalWrite(RELAY1, LOW);
+  digitalWrite(RELAY2, LOW);
+  digitalWrite(RELAY3, LOW);
+  digitalWrite(LVRELAY, LOW);
+  digitalWrite(LEDFAIL, HIGH); 
+  playSongs();
+  lastState=ERROR;
 }
 
 #endif
