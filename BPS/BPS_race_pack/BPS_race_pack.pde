@@ -277,20 +277,18 @@ void loop() {
     
     //Check for absolute voltage problems
     if(checkOverVoltage(cv,4.0,length)) {
-      if(checkOverVoltage(cv,4.05,length)) {
-        if(checkOverVoltage(cv,over,length)) {
+      discharge=true; //balance cells
+      if(checkOverVoltage(cv,4.05,length)) { 
+        if(checkOverVoltage(cv,over,length)) { //if batteries over 4.1V shut down system
           char overchg[1] = { 0x01 };
           sendCAN(0x021,overchg,1);
           error = true;
           delay(10);
           Serial.println("Overvoltage cells");
           delay(30000);
-        } else {
+        } else { //if batteries over 4.05V create warning.
           warning = true;          
         }
-      }
-      else{
-        discharge = true;
       }
     }
     if(checkUnderVoltage(cv,2.8,length)) {
@@ -298,7 +296,7 @@ void loop() {
         Serial.print("Pack: ");
         Serial.println(k);
       
-      if(checkUnderVoltage(cv,under,length)) {
+      if(checkUnderVoltage(cv,under,length)) {  //if batteries under 2.7V raise warning
         char underchg[1] = { 0x02 };
         sendCAN(0x021,underchg,1);
         error = true;
@@ -307,7 +305,7 @@ void loop() {
         Serial.print("Pack: ");
         Serial.println(k);
         delay(30000);
-      } else {
+      } else { //if batteries under 2.8V raise warning
           warning = true;
       }
     }
