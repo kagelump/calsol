@@ -323,10 +323,10 @@ void checkReadings() {
 }
 
 void floatEncoder(CanMessage &msg,float f1, float f2) {
-  float *floats = (float*)(msg.data);
+  /*float *floats = (float*)(msg.data);
   floats[0] = f1;
   floats[1] = f2;
-  /*
+  */
   msg.data[0] = *((char *)&f1);
   msg.data[1] = *(((char *)&f1)+1);
   msg.data[2] = *(((char *)&f1)+2);
@@ -335,7 +335,6 @@ void floatEncoder(CanMessage &msg,float f1, float f2) {
   msg.data[5] = *(((char *)&f2)+1);
   msg.data[6] = *(((char *)&f2)+2);
   msg.data[7] = *(((char *)&f2)+3);
-  */
 }
 
 void sendVoltages(){
