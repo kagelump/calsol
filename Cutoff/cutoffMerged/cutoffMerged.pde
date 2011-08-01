@@ -4,7 +4,7 @@
  * Date: Jun 18th 2011
  */
 
-//#define DEBUG_CAN
+#define DEBUG_CAN
 #define DEBUG_MEASUREMENTS
 #define DEBUG
 

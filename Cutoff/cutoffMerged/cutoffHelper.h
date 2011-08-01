@@ -55,7 +55,8 @@ enum SHUTDOWNREASONS {
   OTHER1_EMERGENCY,
   OTHER2_EMERGENCY,
   OTHER3_EMERGENCY,
-  BPS_ERROR //redundant?  
+  BPS_ERROR,
+  BAD_CAN
 } shutdownReason;
 
 void printShutdownReason(int shutdownReason){
@@ -112,6 +113,9 @@ void printShutdownReason(int shutdownReason){
     case BPS_ERROR:
       Serial.println("Battery Protection System Error.");
       break; //redundant?
+    case BAD_CAN:
+      Serial.println("Lost CAN Communication");
+      break;
     default:
       Serial.println("Unknown Shutdown Reason.");
       break;
@@ -201,13 +205,24 @@ inline void raiseError(){
 
 //play tetris
 void loadTetris(){     
-      if (!playingSong) {
-        playingSong = true;
-        duration = tetrisDuration;
-        notes = tetrisNotes;
-        songSize = tetrisSize;
-        currentNote = 0;
-      } 
+  if (!playingSong) {
+    playingSong = true;
+    duration = tetrisDuration;
+    notes = tetrisNotes;
+    songSize = tetrisSize;
+    currentNote = 0;
+  } 
+}
+
+void loadBadCan() {
+  if (!playingSong) {
+    playingSong = true;
+    duration = beepDuration;
+    notes = beepNotes;
+    songSize = beepSize;
+    songTempo = 0.5;
+    currentNote = 0;
+  }
 }
 
 //play BadRomance
@@ -381,7 +396,9 @@ void sendCurrents(){
       Serial.print("mV C1: ");
       Serial.print(C1);
       Serial.print(" C2: ");
-      Serial.println(C2); 
+      Serial.print(C2); 
+      Serial.print(" RxE: ");
+      Serial.println(Can.rxError());
   #endif
   
   msg.id = CAN_CUTOFF_CURR;
@@ -474,13 +491,14 @@ void do_precharge() {
     delay(100);
     digitalWrite(LVRELAY, HIGH);
     
-    // Hack to wait until the BPS turns on
-    while(!last_heart_bps) {
+    // Hack to wait until the BPS turns on, timeout is 7 seconds
+    int num_loops = 0;
+    while(!last_heart_bps && num_loops < 700) {
       #ifdef DEBUG_CAN
         Serial.print("Last can: ");
         Serial.println(last_can);
       #endif
-      delay(50);
+      delay(10);
     
   }
     
@@ -529,7 +547,11 @@ void do_normal() {
     msg.len = 1;
     msg.data[0] = 0x10;
     Can.send(msg);
-    shutdownReason = BPS_HEARTBEAT;
+    if (Can.rxError() > 20) {
+      shutdownReason = BAD_CAN;
+    } else {
+      shutdownReason = BPS_HEARTBEAT;
+    }
     state = ERROR;
     //Serial.print("Last heartbeat:");
     //Serial.println(LastHeartbeat); 
@@ -623,6 +645,8 @@ void do_error() {
     }    
     if (shutdownReason==BPS_HEARTBEAT){
       loadBadRomance();
+    } else if (shutdownReason == BAD_CAN) {
+      loadBadCan();
     }
     else{
       loadTetris(); 

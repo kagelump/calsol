@@ -162,7 +162,6 @@ int beepNotes[] = {
  NOTE_E4, NOTE_B3, NOTE_A4
 }; 
 
-
 int beepSize = 3;
 
 #endif
