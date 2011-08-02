@@ -456,6 +456,7 @@ void initVariables(){
 /* Does the precharge routine: Wait for motor voltage to reach a threshold,
  * then turns the car to the on state by switching on both relays */
 void do_precharge() {
+  
   digitalWrite(LED1, HIGH);
   last_heart_bps = 0; //reset heartbeat tracking
   long prechargeV = (readV1() / 1000.0); //milliVolts -> Volts
@@ -496,15 +497,13 @@ void do_precharge() {
     digitalWrite(LVRELAY, HIGH);
     
     // Hack to wait until the BPS turns on, timeout is 7 seconds
-    int num_loops = 0;
-    while(!last_heart_bps && num_loops < 700) {
+    while(!last_heart_bps ) {
       #ifdef DEBUG_CAN
         Serial.print("Last can: ");
         Serial.println(last_can);
       #endif
-      delay(10);
-    
-  }
+      delay(10);    
+    }
     
     /* Sound buzzer */
     digitalWrite(BUZZER, HIGH);
@@ -527,6 +526,7 @@ void do_precharge() {
 
 /* Car running state, check for errors, otherwise continue operation */
 void do_normal() {
+  Serial.println("Normal State");
   CanMessage msg = CanMessage();
   lastState=NORMAL;
   
@@ -679,6 +679,8 @@ void printLastWarning(){
     case 0x03:
       Serial.println("Temperature Warning detected");
       break; 
+	default:
+		break;
   }      
 }
 

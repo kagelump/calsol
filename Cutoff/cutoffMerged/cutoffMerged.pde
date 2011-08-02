@@ -29,7 +29,7 @@ void process_packet(CanMessage &msg) {
       last_heart_bps = millis();
       numHeartbeats++;
       bps_code = msg.data[0];     
-      switch( msg.data[0]){
+      switch( bps_code){
         case 0x00:
           /* normal operation */
           break;
@@ -49,6 +49,7 @@ void process_packet(CanMessage &msg) {
           /* BPS Critical error flag */
           shutdownReason=BPS_ERROR;
           emergency = 1;
+          break;
         default:
           break;
       }
@@ -115,6 +116,7 @@ void initialize(){
   else{
     state = PRECHARGE; //boot up the car
   }
+  Serial.println("Initializing");
 }
 
 void setup() {
