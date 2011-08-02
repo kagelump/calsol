@@ -208,7 +208,9 @@ void loop() {
   config[0] = 0xE5;
   writeConfig(config);
   boolean discharge = false;
-  boolean warning = false;
+  boolean warning_ov = false;
+  boolean warning_uv = false;
+  boolean warning_temp = false;
   boolean error = false;
   
   //Active Configuration
@@ -247,7 +249,7 @@ void loop() {
     float cv[12];
     readCellVolt(cv,boards[k]);
     
-    /*
+    
     Serial.println("Cell Voltages: ");
     for(int i=0;i<length;i++) {
       Serial.print(i+1);
@@ -255,7 +257,7 @@ void loop() {
       Serial.println(cv[i]);
     }
     Serial.println("------------------------------------------");
-    */
+    
 
     //Reading temperatures
     beginTemp();
@@ -287,7 +289,7 @@ void loop() {
           Serial.println("Overvoltage cells");
           delay(30000);
         } else { //if batteries over 4.05V create warning.
-          warning = true;          
+          warning_ov = true;          
         }
       }
     }
@@ -306,7 +308,7 @@ void loop() {
         Serial.println(k);
         delay(30000);
       } else { //if batteries under 2.8V raise warning
-          warning = true;
+          warning_uv = true;
       }
     }
     
@@ -320,7 +322,7 @@ void loop() {
           Serial.println("Exceeded Temperature Limit");
           delay(30000);
         } else {
-          warning = true;
+          warning_temp = true;
         }
       }
     
@@ -380,13 +382,27 @@ void loop() {
       char err[1] = { 0x04 };
       sendCAN(0x041,err,1);
       delay(10);
-      Serial.println("Error detected");
-    } else if(warning) {
-      char warn[1] = { 0x01 };
-      sendCAN(0x041,warn,1);
+      Serial.println("Critical Error detected");
+    } else if(warning_uv) {
+      char warn_uv[1] = { 0x01 };
+      sendCAN(0x041,warn_uv,1);
       delay(10);
-      Serial.println("Warning detected");
-    } else {
+      Serial.println("Undervolt Warning detected");
+      warning_uv=0; //reset warning
+    } else if(warning_ov) {
+      char warn_ov[1] = { 0x02 };
+      sendCAN(0x041,warn_ov,1);
+      delay(10);
+      Serial.println("Overvolt Warning detected");
+      warning_ov=0; //reset warning
+    } else if(warning_temp) {
+      char warn_temp[1] = { 0x03 };
+      sendCAN(0x041,warn_temp,1);
+      delay(10);
+      Serial.println("Temperature Warning detected");
+      warning_temp=0; //reset warning
+    }
+    else {
       char ok[1] = { 0x00 };
       sendCAN(0x041,ok,1);
       delay(10);
