@@ -165,6 +165,8 @@ void playSongs(){
         }
         if (playingError &&(millis() > (warningTime+1000))) { 
           playingError=false; //turn off the warning.  Allowing another warning to be raised.
+          digitalWrite(LEDFAIL, LOW);
+          digitalWrite(BUZZER, LOW);
         }
         else if (playingSong && endOfNote < millis()) {
         //play some tunes
@@ -181,7 +183,7 @@ void playSongs(){
         }
 }
 
-inline void raiseWarning(){
+inline void raiseWarning(int warningID){
   if (!playingError){  
     playingError =true;
     digitalWrite(BUZZER, HIGH);
@@ -189,10 +191,11 @@ inline void raiseWarning(){
     warningTime = millis() + shortWarning;
     Serial.println("BPS Warning: Level 1");
     warning=0; //reset warning
+    EEPROM.write(51, warningID); //record the reason for the warning
   }
 }
 
-inline void raiseError(){
+inline void raiseError(int warningID){  //Level 2 Warning: not currently used by BPS
   if (!playingError){
     playingError =true;  
     digitalWrite(BUZZER, HIGH);
@@ -200,6 +203,7 @@ inline void raiseError(){
     warningTime = millis() + longWarning;
     Serial.println("BPS Warning: Level 2");
     warning=0;
+    EEPROM.write(51, warningID); //record the reason for the warning
   }
 }
 
@@ -444,7 +448,7 @@ void initVariables(){
   emergency = 0;
   warning = 0;
   bps_code = 0;
-  
+  playingError = false;
   
   startTime=millis();
 }
@@ -559,11 +563,8 @@ void do_normal() {
     //Serial.println(timeNow);
     //Serial.print("time since heartbeat:");
     //Serial.println(timeLastHeartbeat);    
-  } else if (warning ==1){ //check for level 1 warning
-      raiseWarning();
-  }
-  else if (warning ==2){ //check for level 2 warning: error
-      raiseError();
+  } else if (warning){ //check for level 1 warning
+      raiseWarning(warning);
   }
   
 }
@@ -572,6 +573,7 @@ void lastShutdownReason(){
   int memoryIndex = EEPROM.read(0);  
   int lastReason = EEPROM.read(memoryIndex);
   printShutdownReason(lastReason);
+  
 }
 
 void shutdownLog(){
@@ -663,6 +665,21 @@ void do_error() {
   digitalWrite(LEDFAIL, HIGH); 
   playSongs();
   lastState=ERROR;
+}
+
+void printLastWarning(){
+  int warningID = EEPROM.read(51);
+  switch (warningID){
+    case 0x01:
+      Serial.println("Undervolt Warning detected");
+      break;  
+    case 0x02:
+      Serial.println("Overvolt Warning detected");
+      break; 
+    case 0x03:
+      Serial.println("Temperature Warning detected");
+      break; 
+  }      
 }
 
 #endif

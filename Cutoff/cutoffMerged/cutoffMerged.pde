@@ -29,16 +29,28 @@ void process_packet(CanMessage &msg) {
       last_heart_bps = millis();
       numHeartbeats++;
       bps_code = msg.data[0];     
-      if (msg.data[0] == 0x01) {
-        /* BPS Warning flag */
-        warning = 1;   
-      } else if (msg.data[0] == 0x02) {
-        /* BPS Error */
-        warning = 2;
-      } else if (msg.data[0] == 0x04) {
-        /* BPS Critical error flag */
-        shutdownReason=BPS_ERROR;
-        emergency = 1;
+      switch( msg.data[0]){
+        case 0x00:
+          /* normal operation */
+          break;
+        case 0x01:
+          /* BPS Undervolt Warning flag */
+          warning = 1; 
+          break;  
+        case 0x02:
+          /* BPS Overvoltage Error */
+          warning = 2;
+          break;
+        case 0x03:
+          /* BPS Temperature Error */
+          warning = 3;
+          break;
+        case 0x04:
+          /* BPS Critical error flag */
+          shutdownReason=BPS_ERROR;
+          emergency = 1;
+        default:
+          break;
       }
       break;
     case CAN_HEART_DRIVER_IO:
@@ -161,6 +173,9 @@ void loop() {
     char letter= Serial.read();
     if(letter=='l'){
       shutdownLog();
+    }
+    if(letter=='w'){
+      printLastWarning();
     }
   }
 }
