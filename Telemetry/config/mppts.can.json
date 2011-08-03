@@ -13,7 +13,7 @@
 
   "0x771" : {
     "name" : "MPPT Module 2 Readings",
-    "format" : "ff",
+    "format" : "HHHB",
     "messages" : [
       ["Flags", "true or false bits", "Byte1-0x80:Max Voltage 0x40:Over Temp 0x20:No Charge 0x10:Under Voltage"],
       ["Voltage In", "volt", "Voltage entering the MPPT"],
@@ -25,7 +25,7 @@
 
   "0x772" : {
     "name" : "MPPT Module 3 Readings",
-    "format" : "ff",
+    "format" : "HHHB",
     "messages" : [
       ["Flags", "true or false bits", "Byte1-0x80:Max Voltage 0x40:Over Temp 0x20:No Charge 0x10:Under Voltage"],
       ["Voltage In", "volt", "Voltage entering the MPPT"],
@@ -37,7 +37,7 @@
 
   "0x773" : {
     "name" : "MPPT Module 4 Readings",
-    "format" : "ff",
+    "format" : "HHHB",
     "messages" : [
       ["Flags", "true or false bits", "Byte1-0x80:Max Voltage 0x40:Over Temp 0x20:No Charge 0x10:Under Voltage"],
       ["Voltage In", "volt", "Voltage entering the MPPT"],
@@ -49,7 +49,7 @@
 
   "0x774" : {
     "name" : "MPPT Module 5 Readings",
-    "format" : "ff",
+    "format" : "HHHB",
     "messages" : [
       ["Flags", "true or false bits", "Byte1-0x80:Max Voltage 0x40:Over Temp 0x20:No Charge 0x10:Under Voltage"],
       ["Voltage In", "volt", "Voltage entering the MPPT"],
