@@ -1,12 +1,13 @@
 /* CalSol - UC Berkeley Solar Vehicle Team 
  * CutoffBasic.pde - Cutoff Module
- * Author(s): Ryan Tseng. Brian Duffy
- * Date: Jun 18th 2011
+ * Author(s): Jimmy Hack, Ryan Tseng, Brian Duffy
+ * Date: Aug 3rd 2011
  */
 
 #define DEBUG_CAN
 #define DEBUG_MEASUREMENTS
 #define DEBUG
+#define DEBUG_STATES
 
 #include <EEPROM.h>
 #include "cutoffHelper.h"
@@ -16,17 +17,19 @@
 
 
 
-int numHeartbeats = 0;
 
+  
+/*  This function is called via interrupt whenever a CAN message is received. */
+/*  It identifies the CAN message by ID and processes it to take the appropriate action */
 void process_packet(CanMessage &msg) {
-  last_can = millis();
+  last_can = millis(); //calls to timers while in an interrupt function are not recommended, and can give some funny results.
   switch(msg.id) {     
     /* Add cases for each CAN message ID to be received*/
     
     /* Heartbeats */
     /* to optimize execution time, ordered in frequency they are likely to occur */
     case CAN_HEART_BPS:
-      last_heart_bps = millis();
+      last_heart_bps = last_can;
       numHeartbeats++;
       bps_code = msg.data[0];     
       switch( bps_code){
@@ -55,18 +58,17 @@ void process_packet(CanMessage &msg) {
       }
       break;
     case CAN_HEART_DRIVER_IO:
-      last_heart_driver_io = millis();
+      last_heart_driver_io = last_can;
       break;
     case CAN_HEART_DRIVER_CTL:
-      last_heart_driver_ctl = millis();
+      last_heart_driver_ctl = last_can;
       break;
     case CAN_HEART_TELEMETRY:
-      last_heart_telemetry = millis();
+      last_heart_telemetry = last_can;
       break;
     case CAN_HEART_DATALOGGER:
-      last_heart_datalogger = millis();
-      break;
-    
+      last_heart_datalogger = last_can;
+      break;    
     
     /* Emergencies */
     case CAN_EMER_BPS:
@@ -97,14 +99,16 @@ void process_packet(CanMessage &msg) {
     case CAN_EMER_OTHER3:
       emergency = 1;
       shutdownReason=OTHER3_EMERGENCY;
-      break;      
-    
+      break; 
     default:
       break;
   }
 }
 
+/* This is the startup function that is called whenever the car resets */
+/* It handles reinitializing all variables and pins*/
 void initialize(){
+  Serial.println("Initializing");
   initPins();
   initVariables();
   lastShutdownReason(); //print out reason for last shutdown
@@ -119,15 +123,24 @@ void initialize(){
   Serial.println("Initializing");
 }
 
+/* The default setup function called by Arduino at startup 
+/* This performs one-time setup of our communication protocols
+/* and calls another function initialize()
+/* to setup pins and variables */
 void setup() {
   /* General init */
   Serial.begin(115200);
+  Serial.println("Powering Up");
   initialize(); //initialize pins and variables to begin precharge state.  
   initCAN();
 }
 
+
+/* The default looping function called by Arduino after setup()
+/* This program will loop continuously while the code is in execution.
+/* We use a state machine to handle all of the different modes of operation */
 void loop() {
-  // Perform state fuctions and update state
+  /* Perform state fuctions and update state */
     switch (state) {
       case PRECHARGE:
         do_precharge();
@@ -148,37 +161,13 @@ void loop() {
         do_error();
         break;
     }
-    
+  
   /*This code cannot change the state */
-  if (millis() - last_heart_cutoff > 200) {  //Send out the cutoff heartbeat to anyone listening.  
-    last_heart_cutoff = millis();
-    sendHeartbeat();
-  }
-  if (millis() - last_readings > 103){  // Send out system voltage and current measurements
-                                        //chose a weird number so it wouldn't always match up with the heartbeat timing    
-    last_readings = millis();
-    sendReadings();
-  }
-  #ifdef DEBUG_CAN
-      //Serial.print("last_heart_bps: ");
-      //Serial.println(last_heart_bps);   
-  
-  
-  if (millis()-last_printout > 1000){
-    Serial.print("Last Heartbeat:");
-    Serial.println(numHeartbeats);
-    numHeartbeats=0;
-    last_printout=millis();
-  }
-  #endif
-  if(Serial.available()){
-    char letter= Serial.read();
-    if(letter=='l'){
-      shutdownLog();
-    }
-    if(letter=='w'){
-      printLastWarning();
-    }
-  }
+  sendCutoffCAN();  //send out heartbeats and measurements at the appropriate intervals 
+  processSerial();  //accept serial inputs
+
 }
+
+
+
 

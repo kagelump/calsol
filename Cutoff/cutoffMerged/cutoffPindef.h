@@ -1,7 +1,7 @@
 /* CalSol - UC Berkeley Solar Vehicle Team 
  * cutoffPindef.h - Cutoff Module
  * Purpose: Pin Definitions for the cutoff module
- * Author(s): Ryan Tseng. Brian Duffy
+ * Author(s): Jimmy Hack, Ryan Tseng, Brian Duffy
  * Date: Jun 18th 2011
  */
 

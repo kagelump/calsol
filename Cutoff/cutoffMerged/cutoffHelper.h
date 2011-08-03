@@ -1,8 +1,8 @@
 /* CalSol - UC Berkeley Solar Vehicle Team 
  * cutoffHelper.h - Cutoff Module
  * Purpose: Helper functions for the cutoff module
- * Author(s): Ryan Tseng. Brian Duffy
- * Date: Jun 18th 2011
+ * Author(s): Jimmy Hack, Ryan Tseng, Brian Duffy
+ * Date: Aug 3rd 2011
  */
 
 #ifndef _CUTOFF_HELPER_H_
@@ -28,6 +28,7 @@ volatile unsigned long last_printout = 0;
 volatile int emergency = 0;
 volatile int warning = 0;
 volatile int bps_code = 0;
+int numHeartbeats = 0; //number of bps heartbeats recieved
 
 enum STATES {
   PRECHARGE,
@@ -157,32 +158,6 @@ void initCAN(){
 
 void tone(uint8_t _pin, unsigned int frequency, unsigned long duration);
 
-void playSongs(){
-//shut off buzzer/LED if no longer sending warning
-        if (playingError &&(millis() > warningTime)){
-          digitalWrite(LEDFAIL, LOW);
-          digitalWrite(BUZZER, LOW);
-        }
-        if (playingError &&(millis() > (warningTime+1000))) { 
-          playingError=false; //turn off the warning.  Allowing another warning to be raised.
-          digitalWrite(LEDFAIL, LOW);
-          digitalWrite(BUZZER, LOW);
-        }
-        else if (playingSong && endOfNote < millis()) {
-        //play some tunes
-          int noteDuration = songTempo*1000/duration[currentNote]; 
-          tone(BUZZER, notes[currentNote], noteDuration);
-          int pause = noteDuration * 1.30 ;
-          endOfNote = millis() + pause;
-          currentNote++;
-          if (currentNote >= songSize) {
-            playingSong = false;
-            digitalWrite(BUZZER, LOW);
-          }
-          songTempo=1;
-        }
-}
-
 inline void raiseWarning(int warningID){
   if (!playingError){  
     playingError =true;
@@ -206,6 +181,8 @@ inline void raiseError(int warningID){  //Level 2 Warning: not currently used by
     EEPROM.write(51, warningID); //record the reason for the warning
   }
 }
+
+/*Music Functions */
 
 //play tetris
 void loadTetris(){     
@@ -242,6 +219,31 @@ void loadBadRomance(){
       }
 }
 
+void playSongs(){
+//shut off buzzer/LED if no longer sending warning
+        if (playingError &&(millis() > warningTime)){
+          digitalWrite(LEDFAIL, LOW);
+          digitalWrite(BUZZER, LOW);
+        }
+        if (playingError &&(millis() > (warningTime+1000))) { 
+          playingError=false; //turn off the warning.  Allowing another warning to be raised.
+          digitalWrite(LEDFAIL, LOW);
+          digitalWrite(BUZZER, LOW);
+        }
+        else if (playingSong && endOfNote < millis()) {
+        //play some tunes
+          int noteDuration = songTempo*1000/duration[currentNote]; 
+          tone(BUZZER, notes[currentNote], noteDuration);
+          int pause = noteDuration * 1.30 ;
+          endOfNote = millis() + pause;
+          currentNote++;
+          if (currentNote >= songSize) {
+            playingSong = false;
+            digitalWrite(BUZZER, LOW);
+          }
+          songTempo=1;
+        }
+}
 
 //reads voltage from first voltage source (millivolts)
 long readV1() {
@@ -449,15 +451,17 @@ void initVariables(){
   warning = 0;
   bps_code = 0;
   playingError = false;
-  
   startTime=millis();
 }
 
 /* Does the precharge routine: Wait for motor voltage to reach a threshold,
  * then turns the car to the on state by switching on both relays */
 void do_precharge() {
-  
+  #ifdef DEBUG_STATES
+    Serial.println("in precharge");
+  #endif
   digitalWrite(LED1, HIGH);
+  lastState=PRECHARGE;
   last_heart_bps = 0; //reset heartbeat tracking
   long prechargeV = (readV1() / 1000.0); //milliVolts -> Volts
   long batteryV = (readV2() / 1000.0); //milliVolts -> Volts
@@ -496,14 +500,14 @@ void do_precharge() {
     delay(100);
     digitalWrite(LVRELAY, HIGH);
     
-    // Hack to wait until the BPS turns on, timeout is 7 seconds
-    while(!last_heart_bps ) {
+    // Hack to wait until the BPS turns on
+   while(!last_heart_bps) {
       #ifdef DEBUG_CAN
         Serial.print("Last can: ");
         Serial.println(last_can);
       #endif
       delay(10);    
-    }
+   }
     
     /* Sound buzzer */
     digitalWrite(BUZZER, HIGH);
@@ -526,7 +530,9 @@ void do_precharge() {
 
 /* Car running state, check for errors, otherwise continue operation */
 void do_normal() {
-  Serial.println("Normal State");
+  #ifdef DEBUG_STATES
+    Serial.println("car on");
+  #endif
   CanMessage msg = CanMessage();
   lastState=NORMAL;
   
@@ -597,7 +603,10 @@ void recordShutdownReason(){
 
 /* Turn the car off normally */
 void do_turnoff() {
-  if (lastState!= TURNOFF){
+  #ifdef DEBUG_STATES
+    Serial.println("car off");
+  #endif
+  if (lastState != TURNOFF){
     lastState=TURNOFF;
     Can.send(CanMessage(CAN_CUTOFF_NORMAL_SHUTDOWN));
     /* Will infinite loop in "off" state as long as key switch is off */
@@ -606,13 +615,15 @@ void do_turnoff() {
     printShutdownReason(shutdownReason);
     
   }
-  
   digitalWrite(RELAY1, LOW);
   digitalWrite(RELAY2, LOW);
   digitalWrite(RELAY3, LOW);
   digitalWrite(LVRELAY, LOW);
   //if key is no longer in the off position allow for car to restart
   if ( !checkOffSwitch() ) { 
+    #ifdef DEBUG_STATES
+      Serial.println("Key on, rebooting car");
+    #endif
     //allow to restart car if powered by USB
     initialize();
     //state = PRECHARGE;  //included in initialize function
@@ -656,7 +667,9 @@ void do_error() {
     recordShutdownReason();
     printShutdownReason(shutdownReason);
   }
-  
+  #ifdef DEBUG_STATES
+    Serial.println("Car off due to error");
+  #endif
   /* Trap the code execution here on error */
   digitalWrite(RELAY1, LOW);
   digitalWrite(RELAY2, LOW);
@@ -679,9 +692,43 @@ void printLastWarning(){
     case 0x03:
       Serial.println("Temperature Warning detected");
       break; 
-	default:
-		break;
+    default: 
+      Serial.print("Last Warning Unknown ID:");
+      Serial.println(warningID);
+      break;
   }      
+}
+
+inline void processSerial(){
+    if(Serial.available()){
+    char letter= Serial.read();
+    if(letter=='l'){
+      shutdownLog();
+    }
+    if(letter=='w'){
+      printLastWarning();
+    }
+  }
+}
+
+inline void sendCutoffCAN(){
+  if (millis() - last_heart_cutoff > 200) {  //Send out the cutoff heartbeat to anyone listening.  
+    last_heart_cutoff = millis();
+    sendHeartbeat();
+  }
+  if (millis() - last_readings > 103){  // Send out system voltage and current measurements
+                                        //chose a weird number so it wouldn't always match up with the heartbeat timing    
+    last_readings = millis();
+    sendReadings();
+  }
+  #ifdef DEBUG_CAN
+    if (millis()-last_printout > 1000){//print out number of heartbeats received each second
+      Serial.print("BPS heartbeats/sec: ");
+      Serial.println(numHeartbeats);
+      numHeartbeats=0;
+      last_printout=millis();
+    }
+  #endif
 }
 
 #endif
