@@ -7,17 +7,12 @@
 #define DEBUG_CAN
 #define DEBUG_MEASUREMENTS
 #define DEBUG
-#define DEBUG_STATES
+//#define DEBUG_STATES
 
 #include <EEPROM.h>
 #include "cutoffHelper.h"
 #include "cutoffCanID.h"
 #include "cutoffPindef.h"
-
-
-
-
-
   
 /*  This function is called via interrupt whenever a CAN message is received. */
 /*  It identifies the CAN message by ID and processes it to take the appropriate action */
@@ -120,7 +115,6 @@ void initialize(){
   else{
     state = PRECHARGE; //boot up the car
   }
-  Serial.println("Initializing");
 }
 
 /* The default setup function called by Arduino at startup 
@@ -130,7 +124,7 @@ void initialize(){
 void setup() {
   /* General init */
   Serial.begin(115200);
-  Serial.println("Powering Up");
+  Serial.println("Powering Up");  
   initialize(); //initialize pins and variables to begin precharge state.  
   initCAN();
 }

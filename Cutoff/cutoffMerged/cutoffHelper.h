@@ -57,68 +57,69 @@ enum SHUTDOWNREASONS {
   OTHER2_EMERGENCY,
   OTHER3_EMERGENCY,
   BPS_ERROR,
-  BAD_CAN
+  BAD_CAN,
+  CODING_ERROR
 } shutdownReason;
 
 void printShutdownReason(int shutdownReason){
   Serial.print("Shutdown Reason: ");
   switch (shutdownReason){
     case POWER_LOSS:
-      Serial.println("Loss of power to cutoff.  Possibly due to bomb switch.");
+      //Serial.println("Loss of power to cutoff.  Possibly due to bomb switch.");
       break; 
     case KEY_OFF:
-      Serial.println("Normal Shutdown.  Key in off position.");
+      //Serial.println("Normal Shutdown.  Key in off position.");
       break; 
     case BPS_HEARTBEAT:
-      Serial.println("Missing BPS heartbeat.");
+      //Serial.println("Missing BPS heartbeat.");
       break; 
     case S_UNDERVOLT:
-      Serial.println("High voltage line undervoltage.");
+      //Serial.println("High voltage line undervoltage.");
       break; 
     case S_OVERVOLT:
-      Serial.println("High voltage line overvoltage.");
+      //Serial.println("High voltage line overvoltage.");
       break; 
     case S_OVERCURRENT:
-      Serial.println("High voltage line overcurrent.");
+      //Serial.println("High voltage line overcurrent.");
       break; 
     case BPS_EMERGENCY_OTHER:
-      Serial.println("Battery Protection System Emergency: Other");
+      //Serial.println("Battery Protection System Emergency: Other");
       break; 
     case BPS_UNDERVOLT:
-      Serial.println("BPS Emergency: Battery Undervoltage");
+      //Serial.println("BPS Emergency: Battery Undervoltage");
       break; 
     case BPS_OVERVOLT:
-      Serial.println("BPS Emergency: Battery Overvoltage");
+      //Serial.println("BPS Emergency: Battery Overvoltage");
       break; 
     case BPS_OVERTEMP:
-      Serial.println("BPS Emergency: Batteries Overtemperature");
+      //Serial.println("BPS Emergency: Batteries Overtemperature");
       break; 
     case IO_EMERGENCY:
-      Serial.println("Input Output Boards Emergency.");
+      //Serial.println("Input Output Boards Emergency.");
       break;   
     case CONTROLS_EMERGENCY:
-      Serial.println("Controls Boards Emergency.");
+      //Serial.println("Controls Boards Emergency.");
       break;
     case TELEMETRY_EMERGENCY:
-      Serial.println("Telemetry Board Emergency.");
+      //Serial.println("Telemetry Board Emergency.");
       break;
     case OTHER1_EMERGENCY:
-      Serial.println("Other Board 1 Emergency.");
+      //Serial.println("Other Board 1 Emergency.");
       break;
     case OTHER2_EMERGENCY:
-      Serial.println("Other Board 2 Emergency.");
+      //Serial.println("Other Board 2 Emergency.");
       break;
     case OTHER3_EMERGENCY:
-      Serial.println("Other Board 3 Emergency.");
+      //Serial.println("Other Board 3 Emergency.");
       break;
     case BPS_ERROR:
-      Serial.println("Battery Protection System Error.");
+      //Serial.println("Battery Protection System Error.");
       break; //redundant?
     case BAD_CAN:
-      Serial.println("Lost CAN Communication");
+      //Serial.println("Lost CAN Communication");
       break;
     default:
-      Serial.println("Unknown Shutdown Reason.");
+      //Serial.println("Unknown Shutdown Reason.");
       break;
   }  
 }
@@ -402,9 +403,9 @@ void sendCurrents(){
       Serial.print("mV C1: ");
       Serial.print(C1);
       Serial.print(" C2: ");
-      Serial.print(C2); 
-      Serial.print(" RxE: ");
-      Serial.println(Can.rxError());
+      Serial.println(C2); 
+      //Serial.print(" RxE: ");
+      //Serial.println(Can.rxError());
   #endif
   
   msg.id = CAN_CUTOFF_CURR;
@@ -450,6 +451,7 @@ void initVariables(){
   emergency = 0;
   warning = 0;
   bps_code = 0;
+  shutdownReason = CODING_ERROR; //if no other reason is specified, the code on cutoff has an error
   playingError = false;
   startTime=millis();
 }
@@ -640,7 +642,6 @@ void do_error() {
     digitalWrite(RELAY3, LOW);
     digitalWrite(LVRELAY, LOW);
     digitalWrite(LEDFAIL, HIGH);
-    digitalWrite(BUZZER, HIGH); //If you simply do this, the buzzer will not shut off.
     
     if (shutdownReason==BPS_EMERGENCY_OTHER){  
       #ifdef DEBUG
@@ -654,11 +655,12 @@ void do_error() {
       else if (bps_code == 0x04)
         shutdownReason=BPS_OVERTEMP;
       else
-        shutdownReason=BPS_EMERGENCY_OTHER;
-    }    
-    if (shutdownReason==BPS_HEARTBEAT){
+       shutdownReason=BPS_EMERGENCY_OTHER;      
+    }
+	 else if (shutdownReason==BPS_HEARTBEAT){
       loadBadRomance();
-    } else if (shutdownReason == BAD_CAN) {
+    }
+	 else if (shutdownReason == BAD_CAN) {
       loadBadCan();
     }
     else{
@@ -678,6 +680,7 @@ void do_error() {
   digitalWrite(LEDFAIL, HIGH); 
   playSongs();
   lastState=ERROR;
+  state=ERROR; //ensure we will not leave the error state
 }
 
 void printLastWarning(){
@@ -700,7 +703,7 @@ void printLastWarning(){
 }
 
 inline void processSerial(){
-    if(Serial.available()){
+  if(Serial.available()){
     char letter= Serial.read();
     if(letter=='l'){
       shutdownLog();
@@ -728,7 +731,7 @@ inline void sendCutoffCAN(){
       numHeartbeats=0;
       last_printout=millis();
     }
-  #endif
+  #endif //debug_can
 }
 
-#endif
+#endif //_CUTOFF_HELPER_H_
